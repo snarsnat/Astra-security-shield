@@ -1,0 +1,12 @@
+{
+  "name": "astra-shield-server",
+  "version": "2.1.0",
+  "description": "ASTRA Shield Backend Server (internal — published as part of astra-shield)",
+  "private": true,
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  }
+}

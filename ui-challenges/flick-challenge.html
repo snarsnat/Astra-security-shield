@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flick Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+    }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 32px;
+      position: relative;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .flick-indicator {
+      width: 80px;
+      height: 80px;
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .flick-arrow {
+      width: 32px;
+      height: 32px;
+      fill: none;
+      stroke: var(--text);
+      stroke-width: 2.5;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+    }
+
+    .flick-indicator.right .flick-arrow { transform: rotate(0deg); }
+    .flick-indicator.down .flick-arrow { transform: rotate(90deg); }
+    .flick-indicator.left .flick-arrow { transform: rotate(180deg); }
+    .flick-indicator.up .flick-arrow { transform: rotate(-90deg); }
+
+    .flick-indicator.correct {
+      border-color: var(--accent);
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .flick-indicator.correct .flick-arrow {
+      stroke: var(--accent);
+    }
+
+    .direction-labels {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    .direction-labels span {
+      position: absolute;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .direction-labels .top { top: 8px; left: 50%; transform: translateX(-50%); }
+    .direction-labels .bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+    .direction-labels .left { left: 8px; top: 50%; transform: translateY(-50%); }
+    .direction-labels .right { right: 8px; top: 50%; transform: translateY(-50%); }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover {
+      background: #fff;
+    }
+
+    .action-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        padding: 32px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Flick Challenge</span>
+    </div>
+
+    <div class="instruction">Swipe the direction</div>
+    <div class="instruction-sub">Flick in the direction of the arrow. Swipe firmly and quickly.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area" id="challengeArea">
+      <div class="flick-indicator" id="flickIndicator">
+        <svg class="flick-arrow" viewBox="0 0 24 24">
+          <line x1="5" y1="12" x2="19" y2="12"/>
+          <polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </div>
+      <div class="direction-labels">
+        <span class="top">N</span>
+        <span class="bottom">S</span>
+        <span class="left">W</span>
+        <span class="right">E</span>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">Swipe in the arrow direction</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting for flick...</button>
+      <div class="meta">
+        <span>ASTRA-FLICK</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const challengeArea = document.getElementById('challengeArea');
+    const flickIndicator = document.getElementById('flickIndicator');
+    const progressFill = document.getElementById('progressFill');
+    const actionBtn = document.getElementById('actionBtn');
+    const hint = document.getElementById('hint');
+    const timestamp = document.getElementById('timestamp');
+
+    const duration = 4000;
+    let startTime = Date.now();
+
+    const directions = ['right', 'down', 'left', 'up'];
+    const rotations = { right: 0, down: 90, left: 180, up: -90 };
+    const targetDir = directions[Math.floor(Math.random() * directions.length)];
+
+    flickIndicator.classList.add(targetDir);
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    let startX = 0;
+    let startY = 0;
+    let isTracking = false;
+
+    function handleStart(e) {
+      const evt = e.type === 'mousedown' ? e : e.touches[0];
+      startX = evt.clientX;
+      startY = evt.clientY;
+      isTracking = true;
+    }
+
+    function handleMove(e) {
+      if (!isTracking) return;
+      e.preventDefault();
+      const evt = e.type === 'mousemove' ? e : e.touches[0];
+      const deltaX = evt.clientX - startX;
+      const deltaY = evt.clientY - startY;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+      if (distance > 60) {
+        isTracking = false;
+        const swipeDir = Math.abs(deltaX) > Math.abs(deltaY)
+          ? (deltaX > 0 ? 'right' : 'left')
+          : (deltaY > 0 ? 'down' : 'up');
+
+        if (swipeDir === targetDir) {
+          handleCorrectFlick();
+        } else {
+          hint.textContent = 'Wrong direction - try again';
+          startX = evt.clientX;
+          startY = evt.clientY;
+          isTracking = true;
+        }
+      }
+    }
+
+    function handleEnd() {
+      isTracking = false;
+    }
+
+    function handleCorrectFlick() {
+      flickIndicator.classList.add('correct');
+      if (navigator.vibrate) navigator.vibrate(50);
+      handleSuccess();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      hint.textContent = 'Correct!';
+      setTimeout(() => {
+        alert('Challenge completed successfully!');
+      }, 300);
+    }
+
+    function updateProgress() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+
+      if (remaining > 0) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        handleTimeout();
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Time out - Try again';
+      actionBtn.disabled = false;
+      actionBtn.onclick = () => location.reload();
+    }
+
+    challengeArea.addEventListener('mousedown', handleStart);
+    challengeArea.addEventListener('touchstart', handleStart);
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('touchmove', handleMove, { passive: false });
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
+
+    updateProgress();
+  </script>
+</body>
+</html>

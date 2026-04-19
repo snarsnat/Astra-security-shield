@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTRA Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <div class="topbar">
+    <div class="topbar-logo">ASTRA<span>.</span></div>
+    <div class="topbar-id" id="topbarId">Loading...</div>
+    <div class="topbar-nav">
+      <a class="active" data-route="apps">APPS</a>
+      <a data-route="about">ABOUT</a>
+    </div>
+  </div>
+
+  <!-- Breadcrumbs -->
+  <div class="breadcrumbs" id="breadcrumbs">
+    <a data-route="apps">ASTRA</a>
+  </div>
+
+  <!-- App List View -->
+  <div id="view-apps">
+    <div class="page-header">
+      <h1>Connected <span class="accent">Apps</span></h1>
+      <p>All projects registered with ASTRA Shield. Click an app to view its security analytics.</p>
+    </div>
+    <div class="app-list" id="appList">
+      <div class="loading">Loading...</div>
+    </div>
+  </div>
+
+  <!-- App Dashboard View -->
+  <div id="view-dashboard" class="hidden">
+    <div class="layout">
+      <div class="sidebar">
+        <div class="sidebar-heading">APPS</div>
+        <div class="sidebar-nav" id="sidebarApps"></div>
+        <div class="sidebar-heading">PAGES</div>
+        <div class="sidebar-nav">
+          <a class="active" data-page="overview">
+            <span class="name">Overview</span>
+          </a>
+          <a data-page="protection">
+            <span class="name">Protection</span>
+          </a>
+          <a data-page="flags">
+            <span class="name">Flagged</span>
+            <span class="badge red" id="flagBadge">0</span>
+          </a>
+          <a data-page="traffic">
+            <span class="name">Traffic</span>
+          </a>
+          <a data-page="oos-scores">
+            <span class="name">OOS Scores</span>
+          </a>
+          <a data-page="live-feed">
+            <span class="name">Live Feed</span>
+          </a>
+          <a data-page="challenges">
+            <span class="name">Challenges</span>
+          </a>
+          <a data-page="sessions">
+            <span class="name">Sessions</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="main">
+        <!-- Overview Page -->
+        <div id="page-overview">
+          <div class="stats-row" id="statsRow"></div>
+
+          <!-- Protection Score Ribbon -->
+          <div class="section protection-ribbon" id="protectionRibbon"></div>
+
+          <div class="section">
+            <div class="chart-container">
+              <div class="chart-box">
+                <h3>Bot vs Human</h3>
+                <canvas id="botHumanChart" width="350" height="260"></canvas>
+              </div>
+              <div class="chart-box">
+                <h3>Attack Types</h3>
+                <canvas id="pieChart" width="350" height="260"></canvas>
+              </div>
+              <div class="chart-box">
+                <h3>Monthly Visitors</h3>
+                <canvas id="barChart" width="400" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Risk Trend (30d)</span>
+            </div>
+            <div class="chart-container">
+              <div class="chart-box" style="min-width: 100%;">
+                <canvas id="riskTrendChart" width="800" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Live Activity Feed</span>
+              <div class="section-actions">
+                <button class="section-action" onclick="exportFeedCSV('overview')">EXPORT CSV</button>
+                <button class="section-action" onclick="refreshLiveFeed()">REFRESH</button>
+              </div>
+            </div>
+            <div class="feed-controls">
+              <input type="text" id="feedSearchOverview" placeholder="Search by IP, action, or tier..." oninput="filterFeed()">
+              <select id="feedFilterTier" onchange="filterFeed()">
+                <option value="">All Tiers</option>
+                <option value="0">Ghost</option>
+                <option value="1">Whisper</option>
+                <option value="2">Nudge</option>
+                <option value="3">Pause</option>
+                <option value="4">Gate</option>
+              </select>
+              <select id="feedFilterAction" onchange="filterFeed()">
+                <option value="">All Actions</option>
+                <option value="blocked">Blocked</option>
+                <option value="passed">Passed</option>
+                <option value="challenge">Challenge</option>
+              </select>
+            </div>
+            <div class="feed-list" id="feedListOverview"></div>
+            <div class="pagination" id="feedPagination"></div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Daily Visitors (30d)</span>
+              <button class="section-action" onclick="exportVisitorsCSV()">EXPORT CSV</button>
+            </div>
+            <div class="chart-container">
+              <div class="chart-box" style="min-width: 100%;">
+                <canvas id="lineChart" width="800" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Protection Page -->
+        <div id="page-protection" class="hidden">
+          <div class="page-header">
+            <h1>Protection <span class="accent">Score</span></h1>
+            <p>Comprehensive shield health metrics and protection coverage for this app.</p>
+          </div>
+          <div class="section">
+            <div class="protection-score-display" id="protectionScoreDisplay"></div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Shield Health Breakdown</span>
+            </div>
+            <div class="health-metrics" id="healthMetrics"></div>
+          </div>
+          <div class="section">
+            <div class="chart-container">
+              <div class="chart-box">
+                <h3>Device Breakdown</h3>
+                <canvas id="deviceChart" width="350" height="260"></canvas>
+              </div>
+              <div class="chart-box">
+                <h3>Browser Breakdown</h3>
+                <canvas id="browserChart" width="350" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Geographic Distribution</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>COUNTRY</th>
+                  <th>VISITORS</th>
+                  <th>BLOCKED</th>
+                  <th>AVG OOS</th>
+                  <th>% OF TRAFFIC</th>
+                </tr>
+              </thead>
+              <tbody id="geoTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Flagged Activity Page -->
+        <div id="page-flags" class="hidden">
+          <div class="page-header">
+            <h1>Flagged <span class="accent">Activity</span></h1>
+            <p>Anomalous behavior detected by scale analysis, repetition patterns, and deviation from baseline.</p>
+          </div>
+          <div class="stats-row" id="flagStats"></div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Flagged Entries</span>
+              <div class="section-actions">
+                <button class="section-action" onclick="exportFlagsCSV()">EXPORT CSV</button>
+              </div>
+            </div>
+            <div class="feed-controls">
+              <input type="text" id="flagSearch" placeholder="Search by IP, reason, or action..." oninput="filterFlags()">
+              <select id="flagFilterSeverity" onchange="filterFlags()">
+                <option value="">All Severities</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+            <div class="flag-list" id="flagList"></div>
+            <div class="pagination" id="flagPagination"></div>
+          </div>
+        </div>
+
+        <!-- Traffic Analysis Page -->
+        <div id="page-traffic" class="hidden">
+          <div class="page-header">
+            <h1>Traffic <span class="accent">Analysis</span></h1>
+            <p>Hourly patterns, threat trends, and behavioral analytics.</p>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Hourly Activity (24h)</span>
+            </div>
+            <div class="chart-container">
+              <div class="chart-box" style="min-width: 100%;">
+                <canvas id="hourlyChart" width="800" height="220"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Threat Timeline (14d)</span>
+            </div>
+            <div class="chart-container">
+              <div class="chart-box" style="min-width: 100%;">
+                <canvas id="threatChart" width="800" height="200"></canvas>
+              </div>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>DATE</th>
+                  <th>THREATS</th>
+                  <th>SEVERITY</th>
+                  <th>TOP TYPE</th>
+                </tr>
+              </thead>
+              <tbody id="threatTable"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sessions Page -->
+        <div id="page-sessions" class="hidden">
+          <div class="page-header">
+            <h1>Session <span class="accent">Analytics</span></h1>
+            <p>Session duration patterns and behavioral analysis.</p>
+          </div>
+          <div class="stats-row" id="sessionStats"></div>
+          <div class="section">
+            <div class="chart-container">
+              <div class="chart-box">
+                <h3>Session Duration Breakdown</h3>
+                <canvas id="sessionChart" width="350" height="260"></canvas>
+              </div>
+              <div class="chart-box">
+                <h3>Behavioral Patterns</h3>
+                <canvas id="behaviorChart" width="350" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Behavioral Metrics</span>
+            </div>
+            <div class="behavior-metrics" id="behaviorMetrics"></div>
+          </div>
+        </div>
+
+        <!-- OOS Scores Page -->
+        <div id="page-oos-scores" class="hidden">
+          <div class="page-header">
+            <h1>OOS <span class="accent">Scores</span></h1>
+            <p>Out-of-Sequence scores for all tracked users. Higher scores indicate more anomalous behavior.</p>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">All Users by Risk Score</span>
+              <div class="section-actions">
+                <button class="section-action" onclick="exportUsersCSV()">EXPORT CSV</button>
+              </div>
+            </div>
+            <div class="feed-controls">
+              <input type="text" id="userSearch" placeholder="Search by user ID or country..." oninput="filterUsers()">
+              <select id="userFilterTier" onchange="filterUsers()">
+                <option value="">All Tiers</option>
+                <option value="0">Ghost</option>
+                <option value="1">Whisper</option>
+                <option value="2">Nudge</option>
+                <option value="3">Pause</option>
+                <option value="4">Gate</option>
+              </select>
+              <select id="userFilterRisk" onchange="filterUsers()">
+                <option value="">All Risk Levels</option>
+                <option value="low">Low (0.0 - 0.5)</option>
+                <option value="medium">Medium (0.5 - 1.5)</option>
+                <option value="high">High (1.5+)</option>
+              </select>
+            </div>
+            <div class="oos-user-list" id="oosUserList"></div>
+            <div class="pagination" id="userPagination"></div>
+          </div>
+          <div class="section">
+            <div class="chart-container">
+              <div class="chart-box">
+                <h3>OOS Score Distribution</h3>
+                <canvas id="oosPieChart" width="350" height="260"></canvas>
+              </div>
+              <div class="chart-box">
+                <h3>Score by Tier</h3>
+                <canvas id="oosBarChart" width="400" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Feed Page -->
+        <div id="page-live-feed" class="hidden">
+          <div class="page-header">
+            <h1>Live <span class="accent">Feed</span></h1>
+            <p>Real-time activity from all verified sessions. Updates on each refresh.</p>
+          </div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">All Activity</span>
+              <div class="section-actions">
+                <button class="section-action" onclick="exportFeedCSV('full')">EXPORT CSV</button>
+                <button class="section-action" onclick="refreshLiveFeed()">REFRESH</button>
+              </div>
+            </div>
+            <div class="feed-controls">
+              <input type="text" id="feedSearchFull" placeholder="Search by IP, action, or tier..." oninput="filterFeedFull()">
+              <select id="feedFilterTierFull" onchange="filterFeedFull()">
+                <option value="">All Tiers</option>
+                <option value="0">Ghost</option>
+                <option value="1">Whisper</option>
+                <option value="2">Nudge</option>
+                <option value="3">Pause</option>
+                <option value="4">Gate</option>
+              </select>
+              <select id="feedFilterActionFull" onchange="filterFeedFull()">
+                <option value="">All Actions</option>
+                <option value="blocked">Blocked</option>
+                <option value="passed">Passed</option>
+                <option value="challenge">Challenge</option>
+              </select>
+            </div>
+            <div class="feed-list" id="feedListFull"></div>
+            <div class="pagination" id="feedPaginationFull"></div>
+          </div>
+        </div>
+
+        <!-- Challenges Page -->
+        <div id="page-challenges" class="hidden">
+          <div class="page-header">
+            <h1>Challenge <span class="accent">Results</span></h1>
+            <p>Breakdown of which challenges were issued, passed, and failed.</p>
+          </div>
+          <div class="stats-row" id="challengeStats"></div>
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Challenge Types</span>
+            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>TYPE</th>
+                  <th>COMPLETED</th>
+                  <th>PASSED</th>
+                  <th>FAILED</th>
+                  <th>PASS RATE</th>
+                </tr>
+              </thead>
+              <tbody id="challengeTable"></tbody>
+            </table>
+          </div>
+          <div class="section">
+            <div class="chart-container">
+              <div class="chart-box">
+                <h3>Pass vs Fail by Type</h3>
+                <canvas id="challengeBarChart" width="400" height="260"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- About View -->
+  <div id="view-about" class="hidden">
+    <div class="page-header">
+      <h1>About <span class="accent">ASTRA</span></h1>
+      <p>Behavioral bot detection and human verification system.</p>
+    </div>
+    <div style="padding: 40px 24px; max-width: 700px;">
+      <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 20px;">
+        ASTRA Shield is a security framework that analyzes user behavior patterns to distinguish humans from bots.
+        It uses a 5-tier friction model where 95% of legitimate users experience zero friction, and only
+        suspicious traffic faces additional verification.
+      </p>
+      <p style="font-size: 0.85rem; color: #6b6960; line-height: 1.6;">
+        This dashboard reads data from apps registered via the <code style="font-family: monospace; background: #f0efe9; padding: 2px 6px;">astra add</code>
+        CLI command. Each app's API routes send verification data to this dashboard for aggregation and display.
+      </p>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-content">
+      <span>ASTRA Shield v2.0.0</span>
+      <span class="footer-sep">|</span>
+      <span id="footerDashboardId">Dashboard ID: Loading...</span>
+      <span class="footer-sep">|</span>
+      <span id="footerStatus">Status: Connecting...</span>
+    </div>
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>

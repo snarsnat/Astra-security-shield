@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verified - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 48px 32px;
+      text-align: center;
+      position: relative;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      margin-bottom: 32px;
+    }
+
+    .check {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .check svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linecap: square;
+      stroke-linejoin: miter;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .divider {
+      width: 32px;
+      height: 2px;
+      background: var(--accent);
+      margin: 24px auto;
+    }
+
+    .meta {
+      font-size: 10px;
+      color: #404040;
+      margin-top: 32px;
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        padding: 40px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+
+    <div class="check">
+      <svg viewBox="0 0 24 24" fill="none">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+
+    <h1 class="title">Verified</h1>
+    <div class="divider"></div>
+    <p class="subtitle">You're all set. No further action required.</p>
+
+    <p class="meta">ASTRA-VERIFIED</p>
+  </div>
+</body>
+</html>

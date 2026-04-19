@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulse Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --warning: #ef4444;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+    }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 32px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .pulse-ring {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      opacity: 0;
+    }
+
+    .pulse-ring:nth-child(1) { animation: pulse-ring 1.5s ease-out infinite; }
+    .pulse-ring:nth-child(2) { animation: pulse-ring 1.5s ease-out infinite 0.3s; }
+    .pulse-ring:nth-child(3) { animation: pulse-ring 1.5s ease-out infinite 0.6s; }
+
+    @keyframes pulse-ring {
+      0% { transform: scale(0.8); opacity: 0.6; border-color: var(--accent); }
+      100% { transform: scale(1.2); opacity: 0; border-color: var(--border); }
+    }
+
+    .pulse-core {
+      width: 80px;
+      height: 80px;
+      background: var(--surface-alt);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s ease;
+      position: relative;
+    }
+
+    .pulse-core::after {
+      content: '';
+      width: 24px;
+      height: 24px;
+      background: var(--accent);
+      border-radius: 50%;
+      transition: transform 0.1s ease;
+    }
+
+    .pulse-core.tapped::after {
+      transform: scale(1.3);
+    }
+
+    .challenge-area:hover .pulse-core {
+      border-color: var(--text-muted);
+    }
+
+    .counter {
+      position: absolute;
+      bottom: -8px;
+      right: -8px;
+      width: 32px;
+      height: 32px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .counter.success {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover {
+      background: #fff;
+    }
+
+    .action-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        padding: 32px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Pulse Challenge</span>
+    </div>
+
+    <div class="instruction">Tap with the rhythm</div>
+    <div class="instruction-sub">Tap the center circle when the rings pulse. Match the rhythm 3 times.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area" id="challengeArea">
+      <div class="pulse-ring"></div>
+      <div class="pulse-ring"></div>
+      <div class="pulse-ring"></div>
+      <div class="pulse-core" id="pulseCore"></div>
+      <div class="counter" id="counter">0/3</div>
+    </div>
+
+    <div class="hint">Tap the circle</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting...</button>
+      <div class="meta">
+        <span>ASTRA-PULSE</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    // ─── Anti-automation tripwires ───────────────────────────────────────────
+    // These are client-side tells only — real verification happens server-side.
+    // The signals here are reported back to the SDK so the server can factor
+    // them into its risk score.
+    const signals = {
+      headless: false,
+      webdriver: false,
+      pluginsMissing: false,
+      suspiciousUA: false,
+      startedAt: Date.now(),
+    };
+    try {
+      if (navigator.webdriver) signals.webdriver = true;
+      if (/HeadlessChrome|PhantomJS|SlimerJS|Electron\//i.test(navigator.userAgent)) {
+        signals.headless = true;
+      }
+      if (navigator.plugins && navigator.plugins.length === 0 && !/Mobile/i.test(navigator.userAgent)) {
+        signals.pluginsMissing = true;
+      }
+      // Chrome DevTools Protocol exposes window.chrome.runtime even in regular Chrome,
+      // but missing window.chrome on a UA that claims to be Chrome is suspicious.
+      if (/Chrome\//.test(navigator.userAgent) && typeof window.chrome === 'undefined') {
+        signals.suspiciousUA = true;
+      }
+    } catch { /* fingerprinting failures are fine */ }
+
+    // Block common automation frame-pacing tricks (requestAnimationFrame bypass).
+    // If rAF never fires within 500ms of page load, the page is almost certainly
+    // being driven by a headless evaluator.
+    let rafFired = false;
+    requestAnimationFrame(() => { rafFired = true; });
+    setTimeout(() => { if (!rafFired) signals.headless = true; }, 500);
+
+    const challengeArea = document.getElementById('challengeArea');
+    const pulseCore = document.getElementById('pulseCore');
+    const counter = document.getElementById('counter');
+    const progressFill = document.getElementById('progressFill');
+    const actionBtn = document.getElementById('actionBtn');
+    const timestamp = document.getElementById('timestamp');
+
+    const requiredTaps = 3;
+    let currentTaps = 0;
+    let startTime = Date.now();
+    const duration = 5000;
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const ringTimings = [750, 1500, 2250];
+    let tappedAt = [];
+
+    function updateProgress() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+
+      if (remaining > 0) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        handleTimeout();
+      }
+    }
+
+    function handleTap(e) {
+      // Reject synthetic events: only trusted user input counts.
+      if (e && e.isTrusted === false) return;
+
+      const elapsed = Date.now() - startTime;
+      const expectedIndex = tappedAt.length;
+
+      if (expectedIndex >= ringTimings.length) return;
+
+      const expected = ringTimings[expectedIndex];
+      const tolerance = 300;
+
+      if (Math.abs(elapsed - expected) <= tolerance) {
+        tappedAt.push(elapsed);
+        currentTaps++;
+        counter.textContent = currentTaps + '/' + requiredTaps;
+
+        pulseCore.classList.add('tapped');
+        setTimeout(() => pulseCore.classList.remove('tapped'), 100);
+
+        if (navigator.vibrate) navigator.vibrate(30);
+
+        if (currentTaps >= requiredTaps) {
+          counter.classList.add('success');
+          handleSuccess();
+        }
+      }
+    }
+
+    function postResult(outcome) {
+      const result = {
+        type: 'astra-challenge-result',
+        challenge: 'pulse',
+        outcome,
+        taps: tappedAt,
+        signals,
+        completedIn: Date.now() - signals.startedAt,
+      };
+      if (window.parent && window.parent !== window) {
+        try { window.parent.postMessage(result, '*'); } catch {}
+      }
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      postResult('success');
+      // No alert() — the parent frame / SDK handles next steps.
+    }
+
+    function handleTimeout() {
+      if (currentTaps < requiredTaps) {
+        actionBtn.textContent = 'Try again';
+        actionBtn.disabled = false;
+        actionBtn.addEventListener('click', () => location.reload(), { once: true });
+        postResult('timeout');
+      }
+    }
+
+    challengeArea.addEventListener('click', handleTap);
+    challengeArea.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      handleTap(e);
+    }, { passive: false });
+
+    updateProgress();
+  </script>
+</body>
+</html>

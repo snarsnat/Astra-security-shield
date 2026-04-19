@@ -1,0 +1,12 @@
+{
+  "name": "astra-shield-dashboard",
+  "version": "2.0.0",
+  "description": "ASTRA Dashboard (internal — published as part of astra-shield)",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  }
+}

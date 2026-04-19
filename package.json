@@ -1,0 +1,132 @@
+{
+  "name": "astra-shield",
+  "version": "2.1.0",
+  "description": "Invisible bot detection & human verification — the best security is the security you never notice",
+  "type": "module",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    },
+    "./react": {
+      "types": "./dist/types/integrations/react.d.ts",
+      "import": "./dist/esm/integrations/react.js",
+      "require": "./dist/cjs/integrations/react.js"
+    },
+    "./vue": {
+      "types": "./dist/types/integrations/vue.d.ts",
+      "import": "./dist/esm/integrations/vue.js",
+      "require": "./dist/cjs/integrations/vue.js"
+    },
+    "./angular": {
+      "types": "./dist/types/integrations/angular.d.ts",
+      "import": "./dist/esm/integrations/angular.js",
+      "require": "./dist/cjs/integrations/angular.js"
+    },
+    "./shield-server": "./server/index.js",
+    "./dashboard": "./dashboard/server.js"
+  },
+  "bin": {
+    "astra": "./cli/astra.js"
+  },
+  "files": [
+    "dist/",
+    "cli/",
+    "server/",
+    "dashboard/",
+    "src/",
+    "ui-challenges/",
+    "postinstall.js",
+    "astra-setup.js",
+    "astra.config.json",
+    "rollup.config.js",
+    "tsconfig.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "rollup -c",
+    "build:types": "tsc --emitDeclarationOnly",
+    "dev:server": "node server/index.js",
+    "dev:dashboard": "node dashboard/server.js",
+    "dashboard": "node cli/astra.js dashboard",
+    "start": "node cli/astra.js dashboard start",
+    "stop": "node cli/astra.js dashboard stop",
+    "status": "node cli/astra.js dashboard status",
+    "test": "echo 'No tests yet — add them!'",
+    "lint": "eslint src/ cli/ server/ dashboard/ --ext .js,.ts 2>/dev/null || echo 'No ESLint config yet'",
+    "prepublishOnly": "echo 'Publishing astra-shield v'$(node -e \"console.log(require('./package.json').version)\")",
+    "postinstall": "node -e \"try{require('./postinstall.js')}catch(e){}\" || true",
+    "pack": "npm pack && tar -tzf astra-shield-*.tgz | head -50"
+  },
+  "keywords": [
+    "security",
+    "bot-detection",
+    "captcha",
+    "invisible-verification",
+    "human-verification",
+    "accessibility",
+    "behavioral-analysis",
+    "fingerprinting",
+    "cli",
+    "astra",
+    "shield",
+    "web-security",
+    "fraud-prevention"
+  ],
+  "author": "Nausheen Suraj",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/snarsnat/astra.git"
+  },
+  "bugs": {
+    "url": "https://github.com/snarsnat/astra/issues"
+  },
+  "homepage": "https://github.com/snarsnat/astra#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "peerDependencies": {
+    "react": ">=17.0.0",
+    "vue": ">=3.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "morgan": "^1.10.0",
+    "nanoid": "^5.0.4",
+    "crypto-js": "^4.2.0",
+    "zod": "^3.22.4",
+    "geoip-lite": "^1.4.10",
+    "useragent": "^2.3.0",
+    "blake3": "^2.1.7",
+    "simhash-js": "^1.0.0",
+    "open": "^10.1.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-typescript": "^11.1.5",
+    "@rollup/plugin-replace": "^5.0.5",
+    "@rollup/plugin-terser": "^0.4.4",
+    "@rollup/plugin-babel": "^6.0.4",
+    "rollup-plugin-postcss": "^4.0.2",
+    "typescript": "^5.3.2",
+    "eslint": "^8.56.0"
+  }
+}

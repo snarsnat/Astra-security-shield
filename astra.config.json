@@ -1,0 +1,15 @@
+{
+  "name": "Astra",
+  "version": "1.0.0",
+  "endpoint": "/api/verify",
+  "tiers": {
+    "enabled": true,
+    "levels": [
+      "ghost",
+      "whisper",
+      "nudge",
+      "pause",
+      "gate"
+    ]
+  }
+}

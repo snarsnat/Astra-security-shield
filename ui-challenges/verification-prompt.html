@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Astra Verification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: transparent;
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2147483647;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .container {
+      width: 100%;
+      max-width: 360px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+      animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: scale(0.98) translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 8px;
+      margin-bottom: 32px;
+      display: block;
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 32px;
+    }
+
+    .divider {
+      width: 32px;
+      height: 2px;
+      background: var(--accent);
+      margin-bottom: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 14px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.01em;
+    }
+
+    .action-btn:hover {
+      background: #fff;
+      transform: translateY(-1px);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    .timestamp {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      font-size: 10px;
+      color: #404040;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .shield-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .shield-icon svg {
+      width: 32px;
+      height: 32px;
+      stroke: var(--accent);
+      stroke-width: 2;
+      fill: none;
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        padding: 32px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="container">
+      <div class="shield-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+
+      <h1 class="title">Verify you're human</h1>
+      <div class="divider"></div>
+      <p class="subtitle">Complete a quick challenge to confirm you're a real person, not automated software.</p>
+
+      <button class="action-btn" id="proceedBtn">Proceed to challenge</button>
+
+      <span class="timestamp">ASTRA-SECURE</span>
+    </div>
+  </div>
+
+  <script>
+    'use strict';
+
+    const challenges = [
+      'pulse', 'tilt', 'flick', 'breath',
+      'rhythm', 'pressure', 'path', 'semantic',
+      'microchain', 'gaze', 'contextual'
+    ];
+
+    // Capture the parent origin on load so later postMessage calls can be
+    // targeted rather than broadcast to '*' (which would leak to any listener
+    // that manages to end up in the frame tree).
+    let parentOrigin = null;
+    try {
+      parentOrigin = document.referrer ? new URL(document.referrer).origin : null;
+    } catch { /* ignore */ }
+
+    // Cryptographically strong random selection — avoid Math.random() which is
+    // predictable in seeded / headless environments.
+    function pickChallenge() {
+      if (window.crypto && window.crypto.getRandomValues) {
+        const buf = new Uint32Array(1);
+        window.crypto.getRandomValues(buf);
+        return challenges[buf[0] % challenges.length];
+      }
+      return challenges[Math.floor(Math.random() * challenges.length)];
+    }
+
+    document.getElementById('proceedBtn').addEventListener('click', function (e) {
+      if (e && e.isTrusted === false) return; // ignore synthetic clicks
+
+      const randomChallenge = pickChallenge();
+
+      if (window.parent !== window) {
+        // Inside iframe — post to the known parent origin only.
+        try {
+          window.parent.postMessage(
+            { type: 'astra-challenge', challenge: randomChallenge },
+            parentOrigin || location.origin
+          );
+        } catch { /* parent unavailable */ }
+      } else {
+        // Direct page load — navigate. Use a relative, allow-listed filename
+        // so we don't open-redirect to anywhere else.
+        if (challenges.includes(randomChallenge)) {
+          window.location.href = randomChallenge + '-challenge.html';
+        }
+      }
+    });
+
+    // Only accept init messages from the parent frame's origin.
+    window.addEventListener('message', function (event) {
+      if (parentOrigin && event.origin !== parentOrigin) return;
+      if (!event.data || typeof event.data !== 'object') return;
+      if (event.data.type === 'astra-init') {
+        // SDK is initializing — acknowledge only.
+        // (Previously this logged to console; removed to avoid noisy prod logs.)
+      }
+    });
+  </script>
+</body>
+</html>

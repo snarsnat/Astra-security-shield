@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tilt Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+      border-radius: 4px;
+    }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 32px;
+      position: relative;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+
+    .tilt-target {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border: 2px dashed var(--accent);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transition: left 0.3s ease, top 0.3s ease;
+    }
+
+    .tilt-ball {
+      position: absolute;
+      width: 36px;
+      height: 36px;
+      background: var(--text);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      transition: left 0.05s linear, top 0.05s linear;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item {
+      text-align: center;
+    }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.balanced {
+      color: var(--accent);
+    }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover {
+      background: #fff;
+    }
+
+    .action-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    .device-mode {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+
+    @media (max-width: 400px) {
+      .container {
+        padding: 32px 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Tilt Challenge</span>
+    </div>
+
+    <div class="instruction">Balance the ball</div>
+    <div class="instruction-sub">Keep the ball inside the dashed target. Tilt your device or drag to control.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area" id="challengeArea">
+      <div class="tilt-target" id="tiltTarget"></div>
+      <div class="tilt-ball" id="tiltBall"></div>
+    </div>
+
+    <div class="device-mode" id="deviceMode">Detecting tilt sensor...</div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="balancedCount">0</div>
+        <div class="status-label">Balanced</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="requiredCount">15</div>
+        <div class="status-label">Required</div>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">Tilt device or drag ball</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Balancing...</button>
+      <div class="meta">
+        <span>ASTRA-TILT</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const challengeArea = document.getElementById('challengeArea');
+    const tiltTarget = document.getElementById('tiltTarget');
+    const tiltBall = document.getElementById('tiltBall');
+    const progressFill = document.getElementById('progressFill');
+    const actionBtn = document.getElementById('actionBtn');
+    const balancedCount = document.getElementById('balancedCount');
+    const requiredCount = document.getElementById('requiredCount');
+    const deviceMode = document.getElementById('deviceMode');
+    const hint = document.getElementById('hint');
+    const timestamp = document.getElementById('timestamp');
+
+    const duration = 6000;
+    let startTime = Date.now();
+    let ballX = 82;
+    let ballY = 82;
+    let targetX = 82;
+    let targetY = 82;
+    let balanced = 0;
+    let required = 15;
+    let isDragging = false;
+    let useDeviceOrientation = false;
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const tolerance = 22;
+
+    function checkDeviceOrientation() {
+      if (window.DeviceOrientationEvent) {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          deviceMode.textContent = 'Tap to enable tilt control';
+          challengeArea.style.cursor = 'grab';
+        } else {
+          useDeviceOrientation = true;
+          deviceMode.textContent = 'Using device tilt sensor';
+          window.addEventListener('deviceorientation', handleOrientation);
+        }
+      } else {
+        deviceMode.textContent = 'Drag mode - no tilt sensor';
+        challengeArea.style.cursor = 'grab';
+      }
+    }
+
+    function handleOrientation(event) {
+      if (isDragging) return;
+      const gamma = (event.gamma || 0) * 0.8;
+      const beta = (event.beta || 0) * 0.5;
+      ballX = Math.max(18, Math.min(164, 82 - gamma));
+      ballY = Math.max(18, Math.min(164, 82 + beta));
+      updateBall();
+    }
+
+    function updateBall() {
+      tiltBall.style.left = ballX + 'px';
+      tiltBall.style.top = ballY + 'px';
+
+      const dx = Math.abs(ballX - targetX);
+      const dy = Math.abs(ballY - targetY);
+      const distance = Math.sqrt(dx * dx + dy * dy);
+
+      if (distance < tolerance) {
+        balanced++;
+        balancedCount.textContent = balanced;
+        balancedCount.classList.add('balanced');
+        tiltTarget.style.borderColor = 'var(--accent)';
+
+        if (balanced >= required) {
+          handleSuccess();
+        }
+      } else {
+        balancedCount.classList.remove('balanced');
+        tiltTarget.style.borderColor = '#2a2a2a';
+      }
+    }
+
+    function moveTarget() {
+      if (Math.random() < 0.03) {
+        targetX = 60 + Math.random() * 84;
+        targetY = 60 + Math.random() * 84;
+        tiltTarget.style.left = targetX + 'px';
+        tiltTarget.style.top = targetY + 'px';
+      }
+    }
+
+    function handleDrag(e) {
+      if (!isDragging) return;
+      const rect = challengeArea.getBoundingClientRect();
+      const x = e.clientX || (e.touches && e.touches[0].clientX);
+      const y = e.clientY || (e.touches && e.touches[0].clientY);
+      if (x !== undefined && y !== undefined) {
+        ballX = Math.max(18, Math.min(164, x - rect.left));
+        ballY = Math.max(18, Math.min(164, y - rect.top));
+        updateBall();
+      }
+    }
+
+    challengeArea.addEventListener('mousedown', () => { isDragging = true; challengeArea.style.cursor = 'grabbing'; });
+    challengeArea.addEventListener('touchstart', () => { isDragging = true; });
+    document.addEventListener('mousemove', handleDrag);
+    document.addEventListener('touchmove', handleDrag);
+    document.addEventListener('mouseup', () => { isDragging = false; challengeArea.style.cursor = 'grab'; });
+    document.addEventListener('touchend', () => { isDragging = false; });
+
+    function updateProgress() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+      moveTarget();
+
+      if (remaining > 0) {
+        requestAnimationFrame(updateProgress);
+      } else {
+        handleTimeout();
+      }
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      setTimeout(() => {
+        alert('Challenge completed successfully!');
+      }, 300);
+    }
+
+    function handleTimeout() {
+      if (balanced < required) {
+        actionBtn.textContent = 'Try again';
+        actionBtn.disabled = false;
+        actionBtn.onclick = () => location.reload();
+      }
+    }
+
+    checkDeviceOrientation();
+    updateProgress();
+  </script>
+</body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ASTRA Shield - Usage Examples</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      line-height: 1.6;
+    }
+    h1 { color: #6366F1; }
+    h2 { margin-top: 40px; border-bottom: 2px solid #E2E8F0; padding-bottom: 10px; }
+    code {
+      background: #F1F5F9;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+    pre {
+      background: #1E293B;
+      color: #F8FAFC;
+      padding: 20px;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    .example { margin-bottom: 40px; }
+    button {
+      background: linear-gradient(135deg, #6366F1, #8B5CF6);
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover { transform: translateY(-2px); }
+    #results {
+      margin-top: 20px;
+      padding: 16px;
+      background: #F8FAFC;
+      border-radius: 8px;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>ASTRA Shield - Usage Examples</h1>
+
+  <div class="example">
+    <h2>1. Basic Usage</h2>
+    <pre><code>import { ASTRAShield } from 'astra-shield';
+
+const shield = new ASTRAShield({ debug: true });
+
+// Protect an action
+async function login() {
+  const result = await shield.protect('login', { userId: '123' });
+  console.log(result);
+}</code></pre>
+    <button onclick="basicExample()">Try Basic Example</button>
+  </div>
+
+  <div class="example">
+    <h2>2. Event Listeners</h2>
+    <pre><code>shield.on('success', (data) => {
+  console.log('Verified!', data);
+});
+
+shield.on('challenge', (data) => {
+  console.log('Challenge started:', data.tier);
+});
+
+shield.on('blocked', (data) => {
+  console.log('Blocked:', data.reason);
+});</code></pre>
+    <button onclick="eventExample()">Try Event Example</button>
+  </div>
+
+  <div class="example">
+    <h2>3. Manual Verification</h2>
+    <pre><code>// Force verification at any time
+const result = await shield.verify();
+if (result.success) {
+  // User is human
+}</code></pre>
+    <button onclick="verifyExample()">Try Verify Example</button>
+  </div>
+
+  <div class="example">
+    <h2>4. Accessibility Options</h2>
+    <pre><code>shield.accessibility.setPreference('reduceMotion', true);
+shield.accessibility.setPreference('highContrast', true);
+shield.accessibility.setPreference('extendedTime', true);</code></pre>
+    <button onclick="accessibilityExample()">Try Accessibility Example</button>
+  </div>
+
+  <div class="example">
+    <h2>5. Custom Configuration</h2>
+    <pre><code>const shield = new ASTRAShield({
+  apiKey: 'your-api-key',
+  endpoint: '/api/verify',
+  sessionDuration: 60 * 60 * 1000, // 1 hour
+  mutationInterval: 60 * 60 * 1000, // 1 hour
+  theme: 'auto'
+});</code></pre>
+    <button onclick="configExample()">Try Config Example</button>
+  </div>
+
+  <div id="results">Results will appear here...</div>
+
+  <script src="../dist/astra-shield.js"></script>
+  <script>
+    let shield;
+
+    function initShield() {
+      if (!shield) {
+        shield = new ASTRAShield({ debug: true });
+        shield.on('success', (data) => log('Success:', data));
+        shield.on('challenge', (data) => log('Challenge:', data));
+        shield.on('blocked', (data) => log('Blocked:', data));
+      }
+    }
+
+    function log(...args) {
+      const results = document.getElementById('results');
+      results.textContent = new Date().toLocaleTimeString() + '\n' + args.join(' ');
+      console.log('[ASTRA]', ...args);
+    }
+
+    async function basicExample() {
+      initShield();
+      log('Testing protect()...');
+      const result = await shield.protect('example_action');
+      log('Result:', JSON.stringify(result, null, 2));
+    }
+
+    async function eventExample() {
+      initShield();
+      log('Events are already set up. Testing...');
+      const result = await shield.protect('event_test');
+      log('Final result:', result.success ? 'SUCCESS' : 'FAILED');
+    }
+
+    async function verifyExample() {
+      initShield();
+      log('Testing manual verify()...');
+      const result = await shield.verify();
+      log('Verify result:', JSON.stringify(result, null, 2));
+    }
+
+    function accessibilityExample() {
+      initShield();
+      shield.accessibility.setPreference('reduceMotion', true);
+      shield.accessibility.setPreference('extendedTime', true);
+      log('Accessibility preferences set. Try a challenge!');
+    }
+
+    async function configExample() {
+      // Create new shield with config
+      const customShield = new ASTRAShield({
+        sessionDuration: 10 * 60 * 1000,
+        debug: true
+      });
+      const result = await customShield.protect('custom_config_test');
+      log('Custom config result:', JSON.stringify(result, null, 2));
+      customShield.destroy();
+    }
+  </script>
+</body>
+</html>
