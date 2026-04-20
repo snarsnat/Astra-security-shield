@@ -1,4 +1,5 @@
 # 🛡️ ASTRA Shield
+![Astra Banner](banner1.png)
 
 **Invisible bot detection & human verification** — the best security is the security you never notice.
 
