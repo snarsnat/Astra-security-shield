@@ -1,5 +1,7 @@
 # 🛡️ ASTRA Shield
 ![Astra Banner](banner1.png)
+[![X](https://img.shields.io/badge/Follow-@happinezreal-000000?style=flat&logo=x)](https://x.com/happinezreal)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/nebsol) 
 
 **Invisible bot detection & human verification** — the best security is the security you never notice.
 
