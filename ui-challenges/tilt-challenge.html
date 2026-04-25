@@ -348,6 +348,7 @@
     }
 
     function handleDrag(e) {
+      if (!e.isTrusted) return;
       if (!isDragging) return;
       const rect = challengeArea.getBoundingClientRect();
       const x = e.clientX || (e.touches && e.touches[0].clientX);
@@ -383,9 +384,9 @@
       actionBtn.textContent = 'Verified';
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
-      setTimeout(() => {
-        alert('Challenge completed successfully!');
-      }, 300);
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-complete', success: true, challenge: 'tilt' }, '*');
+      }
     }
 
     function handleTimeout() {

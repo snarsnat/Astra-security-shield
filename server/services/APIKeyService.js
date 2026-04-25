@@ -70,7 +70,8 @@ function timingSafeHexEqual(a, b) {
 
 function atomicWrite(path, data) {
   ensureDir();
-  const tmp = `${path}.${process.pid}.${Date.now()}.tmp`;
+  // crypto.randomBytes to avoid Date.now() collision when multiple writes in same ms
+  const tmp = `${path}.${process.pid}.${crypto.randomBytes(8).toString('hex')}.tmp`;
   writeFileSync(tmp, data, { mode: 0o600 });
   try { chmodSync(tmp, 0o600); } catch {}
   renameSync(tmp, path);

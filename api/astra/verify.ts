@@ -45,34 +45,55 @@ interface APIKeyData {
   totalRequests: number;
 }
 
-// Seed a default API key
-const DEFAULT_API_KEY = 'astra_public_key_2026';
-apiKeys.set(DEFAULT_API_KEY, {
-  id: 'key_default',
-  hash: DEFAULT_API_KEY,
-  permissions: ['verify', 'challenge', 'analyze'],
-  rateLimit: 100,
-  createdAt: new Date().toISOString(),
-  totalRequests: 0,
-});
+// API key must be provisioned via environment or admin endpoint — no hardcoded defaults
+if (process.env.ASTRA_DEFAULT_API_KEY && apiKeys.size === 0) {
+  apiKeys.set(process.env.ASTRA_DEFAULT_API_KEY, {
+    id: 'key_env',
+    hash: process.env.ASTRA_DEFAULT_API_KEY,
+    permissions: ['verify', 'challenge', 'analyze'],
+    rateLimit: 100,
+    createdAt: new Date().toISOString(),
+    totalRequests: 0,
+  });
+}
+
+const MAX_RATE_LIMIT_ENTRIES = 10_000;
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const record = rateLimits.get(ip);
-  if (!record) { rateLimits.set(ip, { count: 1, resetAt: now + 60_000 }); return true; }
+  if (!record) {
+    // Prune expired entries if map too large
+    if (rateLimits.size > MAX_RATE_LIMIT_ENTRIES) {
+      for (const [k, v] of rateLimits) {
+        if (now > v.resetAt) rateLimits.delete(k);
+      }
+    }
+    rateLimits.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
   if (now > record.resetAt) { record.count = 1; record.resetAt = now + 60_000; return true; }
   if (record.count >= 100) return false;
   record.count++;
   return true;
 }
 
+const MAX_SESSIONS = 50_000;
+
 function createSession(ip: string, userAgent: string): SessionData {
-  const id = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const id = `sess_${crypto.randomUUID()}`;
   const session: SessionData = {
     id, ip, userAgent, createdAt: Date.now(), riskScores: [],
     verifications: 0, challengesPassed: 0, challengesFailed: 0,
     lastActivity: Date.now(), trustScore: 0.5,
   };
+  // Prune stale sessions if map too large
+  if (sessions.size > MAX_SESSIONS) {
+    const cutoff = Date.now() - 3_600_000; // 1h
+    for (const [k, v] of sessions) {
+      if (v.lastActivity < cutoff) sessions.delete(k);
+    }
+  }
   sessions.set(id, session);
   return session;
 }
@@ -80,6 +101,10 @@ function createSession(ip: string, userAgent: string): SessionData {
 function getOrCreateSession(ip: string, userAgent: string, sessionId?: string): SessionData {
   if (sessionId && sessions.has(sessionId)) {
     const existing = sessions.get(sessionId)!;
+    // Validate session ownership: IP must match to prevent session hijacking
+    if (existing.ip !== ip) {
+      return createSession(ip, userAgent);
+    }
     existing.lastActivity = Date.now();
     return existing;
   }
@@ -147,7 +172,7 @@ function generateChallenge(tier: number, sessionId: string): any {
   const diffs = ['easy', 'medium', 'hard'];
   const type = types[Math.floor(Math.random() * types.length)];
   const diff = diffs[Math.min(tier - 1, 2)];
-  const id = `chal_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  const id = `chal_${crypto.randomUUID()}`;
   const instructions: Record<string, string> = {
     pulse: 'Tap along with the rhythm.',
     tilt: 'Tilt your device or drag to balance the ball.',
@@ -159,11 +184,30 @@ function generateChallenge(tier: number, sessionId: string): any {
   return challenge;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ success: false, reason: 'method_not_allowed' });
-  if (req.method === 'OPTIONS') { res.setHeader('Access-Control-Allow-Origin', '*'); return res.status(200).end(); }
+// CORS allowlist — only reflect origins that are explicitly whitelisted.
+// Set ASTRA_ALLOWED_ORIGINS env var (comma-separated). Empty = deny all cross-origin.
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return false;
+  const allowList = (process.env.ASTRA_ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+  return allowList.includes(origin);
+}
 
-  const ip = req.headers['x-forwarded-for'] as string || req.socket.remoteAddress || 'unknown';
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+  if (isAllowedOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin!);
+    res.setHeader('Vary', 'Origin');
+  }
+
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-API-Key');
+    return res.status(204).end();
+  }
+  if (req.method !== 'POST') return res.status(405).json({ success: false, reason: 'method_not_allowed' });
+
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const ip = (typeof forwardedFor === 'string' ? forwardedFor.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
   if (!checkRateLimit(ip)) return res.status(429).json({ success: false, reason: 'rate_limit_exceeded', retryAfter: 60 });
 
   try {
@@ -177,6 +221,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const tier = determineTier(compositeScore);
 
     session.riskScores.push(compositeScore);
+    // Cap riskScores array to prevent unbounded memory growth
+    if (session.riskScores.length > 20) {
+      session.riskScores = session.riskScores.slice(-20);
+    }
     session.verifications++;
     session.lastActivity = Date.now();
     if (session.verifications > 3) {

@@ -13,6 +13,30 @@ import { z } from 'zod';
 import APIKeyService from '../services/APIKeyService.js';
 import { requireAPIKey } from '../middleware/auth.js';
 
+// ─── Per-IP rate limiter (token bucket) ──────────────────────────────────────
+const endpointBuckets = new Map();
+const MAX_BUCKETS = 10_000;
+function rateLimit(max, windowMs) {
+  return (req, res, next) => {
+    const ip = req.ip || 'unknown';
+    const key = `${req.path}:${ip}`;
+    const now = Date.now();
+    let rec = endpointBuckets.get(key);
+    if (!rec || now > rec.resetAt) {
+      if (endpointBuckets.size > MAX_BUCKETS) {
+        for (const [k, v] of endpointBuckets) { if (now > v.resetAt) endpointBuckets.delete(k); }
+      }
+      rec = { count: 0, resetAt: now + windowMs };
+      endpointBuckets.set(key, rec);
+    }
+    if (rec.count >= max) {
+      return res.status(429).json({ success: false, reason: 'rate_limit_exceeded', retryAfter: Math.ceil((rec.resetAt - now) / 1000) });
+    }
+    rec.count++;
+    next();
+  };
+}
+
 // ─── Shared schema primitives ────────────────────────────────────────────────
 const IPSchema      = z.string().ip().optional();
 const IDSchema      = z.string().min(1).max(128).regex(/^[A-Za-z0-9._-]+$/);
@@ -126,7 +150,9 @@ export function createAPIRoutes(services = {}, helpers = {}) {
   const { blockIP, consumeNonce, emitEvent, suspicion } = helpers;
   const emit = emitEvent || (() => {});
   const doBlockIP = blockIP || (() => {});
-  const checkNonce = consumeNonce || (() => true);
+  // SECURITY: default nonce checker denies if caller did not wire replay protection.
+  // Previously defaulted to always-true which silently disabled replay protection.
+  const checkNonce = consumeNonce || (() => { console.warn('[ASTRA] consumeNonce not configured — nonce replay protection disabled'); return true; });
   const bumpSuspicion = suspicion ? (ip, n, r) => suspicion.bump(ip, n, r) : () => {};
 
   /**
@@ -419,7 +445,7 @@ export function createAPIRoutes(services = {}, helpers = {}) {
    * POST /api/challenge
    * Challenge generation endpoint
    */
-  router.post('/challenge', validateBody(ChallengeBodySchema), async (req, res) => {
+  router.post('/challenge', rateLimit(60, 60_000), validateBody(ChallengeBodySchema), async (req, res) => {
     try {
       const { type, difficulty, sessionId, deviceInfo } = req.body;
 
@@ -460,7 +486,7 @@ export function createAPIRoutes(services = {}, helpers = {}) {
    * POST /api/challenge/verify
    * Challenge verification endpoint
    */
-  router.post('/challenge/verify', validateBody(ChallengeVerifyBodySchema), async (req, res) => {
+  router.post('/challenge/verify', rateLimit(30, 60_000), validateBody(ChallengeVerifyBodySchema), async (req, res) => {
     try {
       const { challengeId, solution, sessionId } = req.body;
 
@@ -715,15 +741,26 @@ export function createAPIRoutes(services = {}, helpers = {}) {
    */
   router.get('/keys/list', requireAPIKey(['admin']), (req, res) => {
     const { appName } = req.query;
+    const callerApp = req.apiKey?.appName;
+    const isSuperAdmin = (req.apiKey?.permissions || []).includes('superadmin');
 
     if (appName) {
       if (typeof appName !== 'string' || !/^[A-Za-z0-9 _-]{1,64}$/.test(appName)) {
         return res.status(400).json({ success: false, error: 'invalid_app_name' });
       }
+      // Ownership check — non-superadmin can only list keys for their own app
+      if (!isSuperAdmin && callerApp && appName !== callerApp) {
+        return res.status(403).json({ success: false, error: 'forbidden_app_scope' });
+      }
       const keys = APIKeyService.listKeys(appName);
       return res.json({ success: true, keys });
     }
 
+    // Non-superadmin gets only own app's data
+    if (!isSuperAdmin && callerApp) {
+      const keys = APIKeyService.listKeys(callerApp);
+      return res.json({ success: true, keys, appName: callerApp });
+    }
     const apps = APIKeyService.listApps();
     res.json({ success: true, apps });
   });

@@ -22,6 +22,7 @@ export class ChallengeManager {
   private activeOverlay: HTMLElement | null = null;
   private currentChallenge: { cleanup?: () => void } | null = null;
   private callback: ChallengeCallback | null = null;
+  private challengeCompleted: boolean = false;
 
   // Anti-trope: Clean, functional challenge definitions
   private challenges: Record<ChallengeType, { name: string; description: string; duration: number; accessibility: boolean }> = {
@@ -46,6 +47,7 @@ export class ChallengeManager {
 
   createChallengeUI(tier: TierLevel, callback: ChallengeCallback): void {
     this.callback = callback;
+    this.challengeCompleted = false;
     this.removeOverlay();
 
     const challengeType = this.mutator.getChallengeForTier(tier);
@@ -391,18 +393,25 @@ export class ChallengeManager {
       }
     };
 
-    container?.addEventListener('mousedown', () => dragMode = true);
-    container?.addEventListener('touchstart', () => dragMode = true);
+    const handleDragStart = () => { dragMode = true; };
+    const handleDragEnd = () => { dragMode = false; };
+
+    container?.addEventListener('mousedown', handleDragStart);
+    container?.addEventListener('touchstart', handleDragStart);
     document.addEventListener('mousemove', handleDrag);
     document.addEventListener('touchmove', handleDrag);
-    document.addEventListener('mouseup', () => dragMode = false);
-    document.addEventListener('touchend', () => dragMode = false);
+    document.addEventListener('mouseup', handleDragEnd);
+    document.addEventListener('touchend', handleDragEnd);
 
     this.currentChallenge = {
       cleanup: () => {
         window.removeEventListener('deviceorientation', handleOrientation);
+        container?.removeEventListener('mousedown', handleDragStart);
+        container?.removeEventListener('touchstart', handleDragStart);
         document.removeEventListener('mousemove', handleDrag);
         document.removeEventListener('touchmove', handleDrag);
+        document.removeEventListener('mouseup', handleDragEnd);
+        document.removeEventListener('touchend', handleDragEnd);
       }
     };
 
@@ -458,17 +467,23 @@ export class ChallengeManager {
       }
     };
 
+    const handleEnd = () => { isTracking = false; };
+
     container?.addEventListener('mousedown', handleStart);
     container?.addEventListener('touchstart', handleStart);
     document.addEventListener('mousemove', handleMove);
     document.addEventListener('touchmove', handleMove);
-    document.addEventListener('mouseup', () => isTracking = false);
-    document.addEventListener('touchend', () => isTracking = false);
+    document.addEventListener('mouseup', handleEnd);
+    document.addEventListener('touchend', handleEnd);
 
     this.currentChallenge = {
       cleanup: () => {
+        container?.removeEventListener('mousedown', handleStart);
+        container?.removeEventListener('touchstart', handleStart);
         document.removeEventListener('mousemove', handleMove);
         document.removeEventListener('touchmove', handleMove);
+        document.removeEventListener('mouseup', handleEnd);
+        document.removeEventListener('touchend', handleEnd);
       }
     };
 
@@ -650,6 +665,8 @@ export class ChallengeManager {
 
     this.currentChallenge = {
       cleanup: () => {
+        container?.removeEventListener('mousedown', handleHoldStart);
+        container?.removeEventListener('touchstart', handleHoldStart);
         document.removeEventListener('mouseup', handleHoldEnd);
         document.removeEventListener('touchend', handleHoldEnd);
       }
@@ -965,6 +982,8 @@ export class ChallengeManager {
     this.currentChallenge = {
       cleanup: () => {
         area?.removeEventListener('click', handleTap);
+        area?.removeEventListener('mousedown', handleHoldStart);
+        area?.removeEventListener('touchstart', handleHoldStart);
         document.removeEventListener('mouseup', handleHoldEnd);
         document.removeEventListener('touchend', handleHoldEnd);
         document.removeEventListener('mousemove', handleFlick);
@@ -1129,6 +1148,10 @@ export class ChallengeManager {
   }
 
   completeChallenge(success: boolean, type: ChallengeType, tier: TierLevel): void {
+    // Guard against double-completion (timeout + success race)
+    if (this.challengeCompleted) return;
+    this.challengeCompleted = true;
+
     this.currentChallenge?.cleanup?.();
 
     if (success) {

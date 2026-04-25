@@ -44,7 +44,7 @@ function loadOrCreateDashboardId() {
     return fs.readFileSync(ASTRA_DASHBOARD_ID_FILE, 'utf8').trim();
   }
   const id = 'astra-' + crypto.randomBytes(32).toString('hex');
-  fs.writeFileSync(ASTRA_DASHBOARD_ID_FILE, id);
+  fs.writeFileSync(ASTRA_DASHBOARD_ID_FILE, id, { mode: 0o600 });
   return id;
 }
 
@@ -61,7 +61,14 @@ function loadAnalytics() {
 }
 
 function saveAnalytics(data) {
-  try { fs.writeFileSync(ASTRA_ANALYTICS_FILE, JSON.stringify(data, null, 2)); } catch { /* ignore */ }
+  try { fs.writeFileSync(ASTRA_ANALYTICS_FILE, JSON.stringify(data, null, 2), { mode: 0o600 }); } catch (err) { console.error('[ASTRA] Failed to save analytics:', err.message); }
+}
+
+// ─── Input Sanitization ──────────────────────────────────────────────────────
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+function isSafeAppName(name) {
+  return typeof name === 'string' && name.length > 0 && name.length <= 64
+    && /^[A-Za-z0-9 _.-]+$/.test(name) && !FORBIDDEN_KEYS.has(name);
 }
 
 // ─── Shield HTTP Helpers ──────────────────────────────────────────────────────
@@ -427,6 +434,7 @@ function buildEmptyAnalytics(appName) {
 
 // ─── SSE Relay: Forward Shield Events to Browser Clients ─────────────────────
 const dashboardSSEClients = new Set();
+const MAX_DASHBOARD_SSE_CLIENTS = 100;
 
 function broadcastToClients(data) {
   for (const res of dashboardSSEClients) {
@@ -547,6 +555,9 @@ app.get('/api/apps', async (req, res) => {
 // Analytics for a specific app — real data from shield
 app.get('/api/analytics/:appName', async (req, res) => {
   const { appName } = req.params;
+  if (!isSafeAppName(appName)) {
+    return res.status(400).json({ success: false, error: 'invalid_app_name' });
+  }
   const data = await buildAnalytics(appName);
   res.json(data);
 });
@@ -560,6 +571,10 @@ app.get('/api/shield-stats', async (req, res) => {
 
 // SSE relay to browser clients
 app.get('/api/events', (req, res) => {
+  if (dashboardSSEClients.size >= MAX_DASHBOARD_SSE_CLIENTS) {
+    return res.status(503).json({ success: false, reason: 'too_many_subscribers' });
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -580,22 +595,37 @@ app.get('/api/events', (req, res) => {
 
 // Webhook: receive events from apps that call /api/webhook/verify
 app.post('/api/webhook/verify', async (req, res) => {
+  // Validate webhook secret if configured
+  const webhookSecret = process.env.ASTRA_WEBHOOK_SECRET;
+  if (webhookSecret) {
+    const provided = req.headers['x-webhook-secret'];
+    if (!provided || provided !== webhookSecret) {
+      return res.status(401).json({ error: 'unauthorized' });
+    }
+  }
+
   const { appName, sessionId, riskScore, tier, action, ip, reason, timestamp } = req.body;
   if (!appName) return res.status(400).json({ error: 'appName required' });
+  if (!isSafeAppName(appName)) return res.status(400).json({ error: 'invalid_app_name' });
 
   const stored = loadAnalytics();
   if (!stored[appName]) stored[appName] = buildEmptyAnalytics(appName);
   if (!stored[appName].liveFeed) stored[appName].liveFeed = [];
 
+  const safeTier = Number.isInteger(tier) && tier >= 0 && tier <= 4 ? tier : 0;
+  const safeAction = typeof action === 'string' ? action.slice(0, 64).replace(/[^a-z0-9_-]/gi, '') : 'verified';
+  const safeIp = typeof ip === 'string' ? ip.slice(0, 45) : 'unknown';
+  const safeReason = typeof reason === 'string' ? reason.slice(0, 128) : null;
+
   const entry = {
-    action: action || 'verified',
-    ip: ip || 'unknown',
-    tier: tier ?? 0,
-    oosScore: typeof riskScore === 'number' ? parseFloat(riskScore.toFixed(2)) : 0,
-    reason: reason || null,
+    action: safeAction,
+    ip: safeIp,
+    tier: safeTier,
+    oosScore: typeof riskScore === 'number' ? parseFloat(Math.min(10, Math.max(0, riskScore)).toFixed(2)) : 0,
+    reason: safeReason,
     appName,
-    timestamp: timestamp || Date.now(),
-    tierName: ['Ghost', 'Whisper', 'Nudge', 'Pause', 'Gate'][tier ?? 0],
+    timestamp: typeof timestamp === 'number' ? timestamp : Date.now(),
+    tierName: ['Ghost', 'Whisper', 'Nudge', 'Pause', 'Gate'][safeTier],
   };
 
   stored[appName].liveFeed.unshift(entry);

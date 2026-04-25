@@ -47,6 +47,9 @@ export class ChallengeService {
     // In-memory challenge store (used when Redis unavailable)
     // Map: challengeId -> { challenge, expiresAt }
     this._memStore = new Map();
+    this.MAX_MEM_STORE = 10_000;
+    this.MAX_RECENT = 1_000;
+    this.MAX_HISTORY = 5_000;
 
     // Cleanup expired in-memory challenges every minute
     setInterval(() => this._cleanupMemStore(), 60_000);
@@ -89,7 +92,8 @@ export class ChallengeService {
   async generateChallenge(type, options = {}) {
     const sessionId = options.sessionId;
     const difficulty = options.difficulty || 'medium';
-    const seed = options.seed || Date.now();
+    // CSPRNG seed — prevents attacker predicting challenge params from wall-clock time
+    const seed = options.seed || crypto.randomInt(0, 2 ** 31 - 1);
 
     const challengeId = this.generateChallengeId();
 
@@ -825,7 +829,20 @@ export class ChallengeService {
       }
       return;
     }
-    // In-memory fallback
+    // In-memory fallback with hard cap to prevent memory DoS
+    if (this._memStore.size >= this.MAX_MEM_STORE) {
+      // Evict expired first
+      this._cleanupMemStore();
+      // If still at cap, evict oldest 10%
+      if (this._memStore.size >= this.MAX_MEM_STORE) {
+        const evict = Math.floor(this.MAX_MEM_STORE * 0.1);
+        const iter = this._memStore.keys();
+        for (let i = 0; i < evict; i++) {
+          const k = iter.next().value;
+          if (k) this._memStore.delete(k); else break;
+        }
+      }
+    }
     this._memStore.set(challengeId, { challenge, expiresAt: challenge.expires });
   }
 
@@ -910,13 +927,12 @@ export class ChallengeService {
   }
 
   /**
-   * Create seeded random function
+   * Create cryptographically secure random function.
+   * Seed parameter kept for API compat but ignored — always uses crypto.
    */
-  createSeededRandom(seed) {
-    let currentSeed = seed;
+  createSeededRandom(_seed) {
     return function() {
-      currentSeed = (currentSeed * 1103515245 + 12345) & 0x7fffffff;
-      return currentSeed / 0x7fffffff;
+      return crypto.randomInt(0, 2147483647) / 2147483647;
     };
   }
 

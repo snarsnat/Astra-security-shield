@@ -208,8 +208,15 @@ export class SessionService {
     const session = await this.getSession(sessionId);
     if (!session) return null;
 
-    // Apply updates
-    Object.assign(session, updates, {
+    // Prevent prototype pollution by filtering forbidden keys
+    const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype']);
+    const safeUpdates = {};
+    if (updates && typeof updates === 'object') {
+      for (const [k, v] of Object.entries(updates)) {
+        if (!FORBIDDEN.has(k)) safeUpdates[k] = v;
+      }
+    }
+    Object.assign(session, safeUpdates, {
       lastActive: Date.now(),
     });
 

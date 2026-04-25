@@ -650,10 +650,10 @@ export class Detector {
     behavior: ReturnType<typeof this.getBehavioralData>;
     fingerprints: FingerprintData;
     deviceInfo: {
-      hasVibration: 'vibrate' in navigator,
-      hasOrientation: 'DeviceOrientationEvent' in window,
-      hasTouch: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-      isMobile: /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+      hasVibration: boolean;
+      hasOrientation: boolean;
+      hasTouch: boolean;
+      isMobile: boolean;
     };
     timestamps: number[];
   }> {

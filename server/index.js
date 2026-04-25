@@ -155,7 +155,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'"],
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'"],
       fontSrc: ["'self'", 'data:'],
@@ -185,10 +185,15 @@ app.use((req, res, next) => {
   next();
 });
 
+if (IS_PROD && !process.env.ALLOWED_ORIGINS) {
+  console.warn('[ASTRA] WARNING: ALLOWED_ORIGINS not set in production. CORS will reject all cross-origin requests.');
+}
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
-  : ['http://localhost:3000', 'http://localhost:8000', 'http://localhost:8080',
-     'http://127.0.0.1:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:8080'];
+  : IS_PROD
+    ? [] // No default origins in production — must be explicitly configured
+    : ['http://localhost:3000', 'http://localhost:8000', 'http://localhost:8080',
+       'http://127.0.0.1:3000', 'http://127.0.0.1:8000', 'http://127.0.0.1:8080'];
 
 app.use(cors({
   origin: (origin, cb) => {
@@ -349,21 +354,22 @@ app.use('/api/dashboard', (req, res) => {
   res.redirect(301, req.originalUrl.replace('/api/dashboard', '/api/dashboards'));
 });
 
-// ─── Live Stats Endpoint ──────────────────────────────────────────────────────
+// ─── Live Stats Endpoint (auth-gated in production) ──────────────────────────
 app.get('/api/stats', (req, res) => {
   const sessionStats = services.session.getStats();
   const allAppStats = services.session.getAllAppStats();
-  res.json({
-    success: true,
-    stats: {
-      ...sessionStats,
-      blockedIPs: ipBlocklist.size,
-      suspiciousIPs: suspicion.snapshot().length,
-      apps: allAppStats,
-      uptime: process.uptime(),
-      memory: process.memoryUsage().heapUsed,
-    },
-  });
+  // In production, omit sensitive internal details unless admin
+  const stats = {
+    ...sessionStats,
+    blockedIPs: ipBlocklist.size,
+    apps: allAppStats,
+    uptime: process.uptime(),
+  };
+  if (!IS_PROD) {
+    stats.suspiciousIPs = suspicion.snapshot().length;
+    stats.memory = process.memoryUsage().heapUsed;
+  }
+  res.json({ success: true, stats });
 });
 
 // ─── SSE Stream ───────────────────────────────────────────────────────────────

@@ -34,6 +34,16 @@ export class ASTRAShield implements ISTRAShield {
   // Event listeners
   private listeners: Map<EventType, Set<(data: unknown) => void>> = new Map();
 
+  // Bound event handlers (stored so removeEventListener works)
+  private boundHandlers: {
+    mousemove: (e: MouseEvent) => void;
+    click: (e: MouseEvent) => void;
+    keydown: (e: KeyboardEvent) => void;
+    scroll: () => void;
+    touchstart: (e: TouchEvent) => void;
+    touchmove: (e: TouchEvent) => void;
+  };
+
   // State
   public readonly isInitialized: boolean = false;
   public isVerifying: boolean = false;
@@ -70,6 +80,16 @@ export class ASTRAShield implements ISTRAShield {
     this.happiness = new HappinessTracker();
     this.tierEngine = new TierEngine();
     this.challengeManager = new ChallengeManager(this.options, this.mutator, this.accessibility);
+
+    // Store bound event handlers for proper cleanup
+    this.boundHandlers = {
+      mousemove: this.handleMouseMove.bind(this),
+      click: this.handleClick.bind(this),
+      keydown: this.handleKeydown.bind(this),
+      scroll: this.handleScroll.bind(this),
+      touchstart: this.handleTouch.bind(this),
+      touchmove: this.handleTouchMove.bind(this),
+    };
 
     // Bind methods
     this.protect = this.protect.bind(this);
@@ -125,12 +145,12 @@ export class ASTRAShield implements ISTRAShield {
    * Start behavioral tracking
    */
   private startTracking(): void {
-    document.addEventListener('mousemove', this.handleMouseMove.bind(this), { passive: true });
-    document.addEventListener('click', this.handleClick.bind(this), { passive: true });
-    document.addEventListener('keydown', this.handleKeydown.bind(this), { passive: true });
-    document.addEventListener('scroll', this.handleScroll.bind(this), { passive: true });
-    document.addEventListener('touchstart', this.handleTouch.bind(this), { passive: true });
-    document.addEventListener('touchmove', this.handleTouchMove.bind(this), { passive: true });
+    document.addEventListener('mousemove', this.boundHandlers.mousemove, { passive: true });
+    document.addEventListener('click', this.boundHandlers.click, { passive: true });
+    document.addEventListener('keydown', this.boundHandlers.keydown, { passive: true });
+    document.addEventListener('scroll', this.boundHandlers.scroll, { passive: true });
+    document.addEventListener('touchstart', this.boundHandlers.touchstart, { passive: true });
+    document.addEventListener('touchmove', this.boundHandlers.touchmove, { passive: true });
   }
 
   private handleMouseMove(event: MouseEvent): void {
@@ -1424,12 +1444,12 @@ export class ASTRAShield implements ISTRAShield {
    * Destroy the shield instance
    */
   destroy(): void {
-    document.removeEventListener('mousemove', this.handleMouseMove);
-    document.removeEventListener('click', this.handleClick);
-    document.removeEventListener('keydown', this.handleKeydown);
-    document.removeEventListener('scroll', this.handleScroll);
-    document.removeEventListener('touchstart', this.handleTouch);
-    document.removeEventListener('touchmove', this.handleTouchMove);
+    document.removeEventListener('mousemove', this.boundHandlers.mousemove);
+    document.removeEventListener('click', this.boundHandlers.click);
+    document.removeEventListener('keydown', this.boundHandlers.keydown);
+    document.removeEventListener('scroll', this.boundHandlers.scroll);
+    document.removeEventListener('touchstart', this.boundHandlers.touchstart);
+    document.removeEventListener('touchmove', this.boundHandlers.touchmove);
 
     const overlay = document.getElementById('astra-overlay');
     if (overlay) overlay.remove();

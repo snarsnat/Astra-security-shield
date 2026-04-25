@@ -59,7 +59,13 @@ export class Session {
   }
 
   private generateId(): string {
-    return 'sess_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 15);
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return 'sess_' + crypto.randomUUID();
+    }
+    // Fallback for older browsers
+    const arr = new Uint8Array(16);
+    crypto.getRandomValues(arr);
+    return 'sess_' + Array.from(arr, b => b.toString(16).padStart(2, '0')).join('');
   }
 
   private getInitialMetadata(): SessionMetadata {

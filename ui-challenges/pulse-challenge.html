@@ -267,41 +267,6 @@
   </div>
 
   <script>
-    'use strict';
-
-    // ─── Anti-automation tripwires ───────────────────────────────────────────
-    // These are client-side tells only — real verification happens server-side.
-    // The signals here are reported back to the SDK so the server can factor
-    // them into its risk score.
-    const signals = {
-      headless: false,
-      webdriver: false,
-      pluginsMissing: false,
-      suspiciousUA: false,
-      startedAt: Date.now(),
-    };
-    try {
-      if (navigator.webdriver) signals.webdriver = true;
-      if (/HeadlessChrome|PhantomJS|SlimerJS|Electron\//i.test(navigator.userAgent)) {
-        signals.headless = true;
-      }
-      if (navigator.plugins && navigator.plugins.length === 0 && !/Mobile/i.test(navigator.userAgent)) {
-        signals.pluginsMissing = true;
-      }
-      // Chrome DevTools Protocol exposes window.chrome.runtime even in regular Chrome,
-      // but missing window.chrome on a UA that claims to be Chrome is suspicious.
-      if (/Chrome\//.test(navigator.userAgent) && typeof window.chrome === 'undefined') {
-        signals.suspiciousUA = true;
-      }
-    } catch { /* fingerprinting failures are fine */ }
-
-    // Block common automation frame-pacing tricks (requestAnimationFrame bypass).
-    // If rAF never fires within 500ms of page load, the page is almost certainly
-    // being driven by a headless evaluator.
-    let rafFired = false;
-    requestAnimationFrame(() => { rafFired = true; });
-    setTimeout(() => { if (!rafFired) signals.headless = true; }, 500);
-
     const challengeArea = document.getElementById('challengeArea');
     const pulseCore = document.getElementById('pulseCore');
     const counter = document.getElementById('counter');
@@ -316,7 +281,12 @@
 
     timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    const ringTimings = [750, 1500, 2250];
+    const ringTimings = [
+      750,
+      1500,
+      2250
+    ];
+
     let tappedAt = [];
 
     function updateProgress() {
@@ -331,10 +301,7 @@
       }
     }
 
-    function handleTap(e) {
-      // Reject synthetic events: only trusted user input counts.
-      if (e && e.isTrusted === false) return;
-
+    function handleTap() {
       const elapsed = Date.now() - startTime;
       const expectedIndex = tappedAt.length;
 
@@ -360,42 +327,39 @@
       }
     }
 
-    function postResult(outcome) {
-      const result = {
-        type: 'astra-challenge-result',
-        challenge: 'pulse',
-        outcome,
-        taps: tappedAt,
-        signals,
-        completedIn: Date.now() - signals.startedAt,
-      };
-      if (window.parent && window.parent !== window) {
-        try { window.parent.postMessage(result, '*'); } catch {}
-      }
-    }
-
     function handleSuccess() {
       actionBtn.textContent = 'Verified';
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
-      postResult('success');
-      // No alert() — the parent frame / SDK handles next steps.
+      setTimeout(() => {
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: 'astra-challenge-result',
+            challenge: 'pulse',
+            success: true,
+            tappedAt: tappedAt
+          }, window.location.origin);
+        }
+      }, 300);
     }
 
     function handleTimeout() {
       if (currentTaps < requiredTaps) {
         actionBtn.textContent = 'Try again';
         actionBtn.disabled = false;
-        actionBtn.addEventListener('click', () => location.reload(), { once: true });
-        postResult('timeout');
+        actionBtn.onclick = () => location.reload();
       }
     }
 
-    challengeArea.addEventListener('click', handleTap);
-    challengeArea.addEventListener('touchstart', (e) => {
+    challengeArea.addEventListener('click', function(e) {
+      if (!e.isTrusted) return;
+      handleTap();
+    });
+    challengeArea.addEventListener('touchstart', function(e) {
+      if (!e.isTrusted) return;
       e.preventDefault();
-      handleTap(e);
-    }, { passive: false });
+      handleTap();
+    });
 
     updateProgress();
   </script>

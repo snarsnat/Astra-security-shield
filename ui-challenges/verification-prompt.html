@@ -182,62 +182,35 @@
   </div>
 
   <script>
-    'use strict';
+    const ALLOWED_CHALLENGES = new Set([
+      'pulse', 'tilt', 'flick', 'breath'
+    ]);
 
-    const challenges = [
-      'pulse', 'tilt', 'flick', 'breath',
-      'rhythm', 'pressure', 'path', 'semantic',
-      'microchain', 'gaze', 'contextual'
-    ];
+    const challenges = Array.from(ALLOWED_CHALLENGES);
 
-    // Capture the parent origin on load so later postMessage calls can be
-    // targeted rather than broadcast to '*' (which would leak to any listener
-    // that manages to end up in the frame tree).
-    let parentOrigin = null;
-    try {
-      parentOrigin = document.referrer ? new URL(document.referrer).origin : null;
-    } catch { /* ignore */ }
+    document.getElementById('proceedBtn').addEventListener('click', function(e) {
+      if (!e.isTrusted) return;
 
-    // Cryptographically strong random selection — avoid Math.random() which is
-    // predictable in seeded / headless environments.
-    function pickChallenge() {
-      if (window.crypto && window.crypto.getRandomValues) {
-        const buf = new Uint32Array(1);
-        window.crypto.getRandomValues(buf);
-        return challenges[buf[0] % challenges.length];
-      }
-      return challenges[Math.floor(Math.random() * challenges.length)];
-    }
-
-    document.getElementById('proceedBtn').addEventListener('click', function (e) {
-      if (e && e.isTrusted === false) return; // ignore synthetic clicks
-
-      const randomChallenge = pickChallenge();
+      const randomChallenge = challenges[Math.floor(Math.random() * challenges.length)];
 
       if (window.parent !== window) {
-        // Inside iframe — post to the known parent origin only.
-        try {
-          window.parent.postMessage(
-            { type: 'astra-challenge', challenge: randomChallenge },
-            parentOrigin || location.origin
-          );
-        } catch { /* parent unavailable */ }
+        window.parent.postMessage({
+          type: 'astra-challenge',
+          challenge: randomChallenge
+        }, window.location.origin);
       } else {
-        // Direct page load — navigate. Use a relative, allow-listed filename
-        // so we don't open-redirect to anywhere else.
-        if (challenges.includes(randomChallenge)) {
+        // Validate challenge name against allowlist before navigation
+        if (ALLOWED_CHALLENGES.has(randomChallenge)) {
           window.location.href = randomChallenge + '-challenge.html';
         }
       }
     });
 
-    // Only accept init messages from the parent frame's origin.
-    window.addEventListener('message', function (event) {
-      if (parentOrigin && event.origin !== parentOrigin) return;
-      if (!event.data || typeof event.data !== 'object') return;
-      if (event.data.type === 'astra-init') {
-        // SDK is initializing — acknowledge only.
-        // (Previously this logged to console; removed to avoid noisy prod logs.)
+    // Listen for messages from Astra SDK with origin validation
+    window.addEventListener('message', function(event) {
+      if (event.origin !== window.location.origin) return;
+      if (event.data && event.data.type === 'astra-init') {
+        console.log('Astra SDK initialized');
       }
     });
   </script>

@@ -279,6 +279,7 @@
     let isTracking = false;
 
     function handleStart(e) {
+      if (!e.isTrusted) return;
       const evt = e.type === 'mousedown' ? e : e.touches[0];
       startX = evt.clientX;
       startY = evt.clientY;
@@ -326,7 +327,14 @@
       progressFill.style.background = 'var(--accent)';
       hint.textContent = 'Correct!';
       setTimeout(() => {
-        alert('Challenge completed successfully!');
+        if (window.parent !== window) {
+          window.parent.postMessage({
+            type: 'astra-challenge-result',
+            challenge: 'flick',
+            success: true,
+            direction: targetDir
+          }, window.location.origin);
+        }
       }, 300);
     }
 

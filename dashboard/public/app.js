@@ -6,6 +6,17 @@ const API = window.API_BASE_URL || '';
 const VERSION = '2.0.0';
 const ITEMS_PER_PAGE = 20;
 
+// HTML escape helper — prevents XSS in innerHTML
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 let state = {
   view: 'apps',
   currentApp: null,
@@ -118,7 +129,7 @@ function updateBreadcrumbs() {
   if (state.view === 'apps') {
     bc.innerHTML = '<span class="current">ASTRA</span>';
   } else if (state.view === 'dashboard') {
-    bc.innerHTML = `<a data-route="apps" onclick="navigateToApps()">ASTRA</a><span class="sep">/</span><span class="current">${state.currentApp}</span>`;
+    bc.innerHTML = `<a data-route="apps" onclick="navigateToApps()">ASTRA</a><span class="sep">/</span><span class="current">${escapeHtml(state.currentApp)}</span>`;
   } else if (state.view === 'about') {
     bc.innerHTML = '<span class="current">ABOUT</span>';
   }
@@ -127,10 +138,10 @@ function updateBreadcrumbs() {
 function updateSidebar() {
   const container = document.getElementById('sidebarApps');
   container.innerHTML = state.apps.map(a => `
-    <a class="${a.name === state.currentApp ? 'active' : ''}" onclick="navigateToApp('${a.name}')">
+    <a class="${a.name === state.currentApp ? 'active' : ''}" onclick="navigateToApp(${JSON.stringify(a.name)})">
       <span class="dot"></span>
-      <span class="name">${a.name}</span>
-      <span class="badge">${a.framework || 'web'}</span>
+      <span class="name">${escapeHtml(a.name)}</span>
+      <span class="badge">${escapeHtml(a.framework || 'web')}</span>
     </a>
   `).join('');
 }
@@ -164,13 +175,13 @@ async function loadApps() {
     }
 
     container.innerHTML = data.apps.map(app => `
-      <div class="app-item" onclick="navigateToApp('${app.name}')">
+      <div class="app-item" onclick="navigateToApp(${JSON.stringify(app.name)})">
         <div class="app-item-info">
-          <h3>${app.name}</h3>
-          <p>${app.path}</p>
+          <h3>${escapeHtml(app.name)}</h3>
+          <p>${escapeHtml(app.path)}</p>
         </div>
         <div class="app-item-stat">
-          <div class="val">${app.addedAt || '—'}</div>
+          <div class="val">${escapeHtml(app.addedAt || '—')}</div>
           <div class="label">Added</div>
         </div>
         <div class="app-item-arrow">→</div>
@@ -183,7 +194,7 @@ async function loadApps() {
       <div class="empty-state">
         <h2>Failed to Load Apps</h2>
         <p>Could not connect to the dashboard server. Make sure it's running on port 3000.</p>
-        <p style="font-family: monospace; font-size: 0.75rem; margin-top: 12px; color: var(--red);">${err.message}</p>
+        <p style="font-family: monospace; font-size: 0.75rem; margin-top: 12px; color: var(--red);">${escapeHtml(err.message)}</p>
       </div>
     `;
   }
@@ -261,7 +272,7 @@ function showAnalyticsError(err, appName) {
   ['statsRow', 'feedListOverview', 'feedListFull', 'oosUserList', 'challengeStats', 'challengeTable',
    'protectionScoreDisplay', 'healthMetrics', 'flagStats', 'flagList', 'threatTable', 'sessionStats', 'behaviorMetrics'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = `<div style="padding: 40px 24px; text-align: center; color: var(--red); font-size: 0.85rem;">Failed to load data for <strong>${appName}</strong>: ${msg}</div>`;
+    if (el) el.innerHTML = `<div style="padding: 40px 24px; text-align: center; color: var(--red); font-size: 0.85rem;">Failed to load data for <strong>${escapeHtml(appName)}</strong>: ${escapeHtml(msg)}</div>`;
   });
 }
 
@@ -361,10 +372,10 @@ function renderProtection() {
 
   document.getElementById('geoTable').innerHTML = a.geographicDistribution.slice(0, 10).map(g => `
     <tr>
-      <td style="font-weight: 600;">${g.country}</td>
-      <td style="font-family: monospace;">${g.visitors.toLocaleString()}</td>
-      <td style="font-family: monospace; color: ${g.blocked > 10 ? 'var(--red)' : 'inherit'};">${g.blocked.toLocaleString()}</td>
-      <td style="font-family: monospace;">${g.avgOos}</td>
+      <td style="font-weight: 600;">${escapeHtml(g.country)}</td>
+      <td style="font-family: monospace;">${Number(g.visitors).toLocaleString()}</td>
+      <td style="font-family: monospace; color: ${g.blocked > 10 ? 'var(--red)' : 'inherit'};">${Number(g.blocked).toLocaleString()}</td>
+      <td style="font-family: monospace;">${escapeHtml(g.avgOos)}</td>
       <td>
         <div class="progress-bar">
           <div class="progress-fill" style="width: ${Math.min(g.percent, 100)}%"></div>
@@ -455,11 +466,11 @@ function renderFlagList() {
     return `
       <div class="flag-item flag-${f.severity}">
         <div class="flag-severity">
-          <span class="severity-dot severity-${f.severity}"></span>
-          <span class="severity-text">${f.severity.toUpperCase()}</span>
+          <span class="severity-dot severity-${escapeHtml(f.severity)}"></span>
+          <span class="severity-text">${escapeHtml(f.severity).toUpperCase()}</span>
         </div>
-        <div class="flag-ip">${f.ip}</div>
-        <div class="flag-reason">${f.reason}</div>
+        <div class="flag-ip">${escapeHtml(f.ip)}</div>
+        <div class="flag-reason">${escapeHtml(f.reason)}</div>
         <div class="flag-detail">
           <span class="flag-count">${f.actionCount} actions</span>
           <span class="flag-deviation ${f.deviation > 500 ? 'high' : ''}">${f.deviation > 0 ? '+' : ''}${f.deviation}% vs baseline</span>
@@ -529,10 +540,10 @@ function renderTraffic() {
   drawThreatChart('threatChart', a.threatTimeline);
   document.getElementById('threatTable').innerHTML = a.threatTimeline.map(t => `
     <tr>
-      <td style="font-family: monospace; font-size: 0.75rem;">${t.date}</td>
-      <td style="font-family: monospace; font-weight: 700;">${t.threats}</td>
-      <td><span class="severity-badge severity-${t.severity}">${t.severity.toUpperCase()}</span></td>
-      <td style="font-size: 0.78rem;">${t.topType}</td>
+      <td style="font-family: monospace; font-size: 0.75rem;">${escapeHtml(t.date)}</td>
+      <td style="font-family: monospace; font-weight: 700;">${parseInt(t.threats) || 0}</td>
+      <td><span class="severity-badge severity-${escapeHtml(t.severity)}">${escapeHtml(t.severity).toUpperCase()}</span></td>
+      <td style="font-size: 0.78rem;">${escapeHtml(t.topType)}</td>
     </tr>
   `).join('');
 }
@@ -708,16 +719,17 @@ function renderFeedList(containerId, items) {
 
   el.innerHTML = items.map(item => {
     const ago = getTimeAgo(item.timestamp);
-    const isBlocked = item.action.includes('blocked') || item.action.includes('Bot detected');
-    const isChallenge = item.action.includes('Challenge');
+    const actionStr = String(item.action || '');
+    const isBlocked = actionStr.includes('blocked') || actionStr.includes('Bot detected');
+    const isChallenge = actionStr.includes('Challenge');
     const cls = isBlocked ? 'blocked' : isChallenge ? 'challenge' : '';
     return `
       <div class="feed-item">
         <div class="feed-time">${ago}</div>
-        <div class="feed-action ${cls}">${item.action}</div>
-        <div class="feed-ip">${item.ip}</div>
-        <div><span class="tier-badge tier-${item.tier}">${item.tierName}</span></div>
-        <div class="oos-score ${item.oosScore > 1.5 ? 'high' : ''}">OOS: ${item.oosScore.toFixed(2)}</div>
+        <div class="feed-action ${cls}">${escapeHtml(item.action)}</div>
+        <div class="feed-ip">${escapeHtml(item.ip)}</div>
+        <div><span class="tier-badge tier-${parseInt(item.tier) || 0}">${escapeHtml(item.tierName)}</span></div>
+        <div class="oos-score ${item.oosScore > 1.5 ? 'high' : ''}">OOS: ${Number(item.oosScore).toFixed(2)}</div>
       </div>
     `;
   }).join('');
@@ -858,8 +870,8 @@ function renderOosUserList(items) {
     return `
       <div class="oos-user">
         <div class="oos-user-rank">#${globalRank}</div>
-        <div class="oos-user-id">${u.id}</div>
-        <div class="oos-user-country">${u.country}</div>
+        <div class="oos-user-id">${escapeHtml(u.id)}</div>
+        <div class="oos-user-country">${escapeHtml(u.country)}</div>
         <div>
           <span class="oos-bar" style="width: ${barWidth}px; background: ${isHigh ? 'var(--red)' : 'var(--black)'}"></span>
           <span class="oos-score ${isHigh ? 'high' : ''}">${u.oosScore.toFixed(2)}</span>

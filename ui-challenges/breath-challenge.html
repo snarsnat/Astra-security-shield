@@ -382,6 +382,7 @@
     }
 
     function handleHoldStart(e) {
+      if (!e.isTrusted) return;
       e.preventDefault();
       if (!hasStarted) {
         startBreathing();
@@ -395,6 +396,7 @@
     }
 
     function handleHoldEnd(e) {
+      if (!e.isTrusted) return;
       e.preventDefault();
       isHolding = false;
       holdIndicator.textContent = '';
@@ -406,9 +408,9 @@
       progressFill.style.background = 'var(--accent)';
       holdTime.classList.add('complete');
       if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
-      setTimeout(() => {
-        alert('Challenge completed successfully!');
-      }, 300);
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-complete', success: true, challenge: 'breath' }, '*');
+      }
     }
 
     function handleTimeout() {
