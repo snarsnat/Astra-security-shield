@@ -12,21 +12,6 @@
       "import": "./dist/esm/index.js",
       "require": "./dist/cjs/index.js"
     },
-    "./react": {
-      "types": "./dist/types/integrations/react.d.ts",
-      "import": "./dist/esm/integrations/react.js",
-      "require": "./dist/cjs/integrations/react.js"
-    },
-    "./vue": {
-      "types": "./dist/types/integrations/vue.d.ts",
-      "import": "./dist/esm/integrations/vue.js",
-      "require": "./dist/cjs/integrations/vue.js"
-    },
-    "./angular": {
-      "types": "./dist/types/integrations/angular.d.ts",
-      "import": "./dist/esm/integrations/angular.js",
-      "require": "./dist/cjs/integrations/angular.js"
-    },
     "./shield-server": "./server/index.js",
     "./dashboard": "./dashboard/server.js"
   },
@@ -90,18 +75,6 @@
   "homepage": "https://github.com/snarsnat/astra#readme",
   "engines": {
     "node": ">=18.0.0"
-  },
-  "peerDependencies": {
-    "react": ">=17.0.0",
-    "vue": ">=3.0.0"
-  },
-  "peerDependenciesMeta": {
-    "react": {
-      "optional": true
-    },
-    "vue": {
-      "optional": true
-    }
   },
   "dependencies": {
     "blake3": "^2.1.7",

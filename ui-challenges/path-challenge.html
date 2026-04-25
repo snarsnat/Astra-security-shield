@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Path Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo { width: 32px; height: 32px; border-radius: 4px; }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto 32px;
+      position: relative;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      touch-action: none;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item { text-align: center; }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.done { color: var(--accent); }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover { background: #fff; }
+    .action-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container { padding: 32px 24px; }
+      .challenge-area { width: 220px; height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Path Challenge</span>
+    </div>
+
+    <div class="instruction">Trace the path</div>
+    <div class="instruction-sub">Follow the dashed line from start to end without lifting your finger.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area">
+      <canvas id="pathCanvas" width="240" height="240"></canvas>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="progressVal">0%</div>
+        <div class="status-label">Progress</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="accuracyVal">100%</div>
+        <div class="status-label">Accuracy</div>
+      </div>
+    </div>
+
+    <div class="hint">Hold and drag along line</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Tracing...</button>
+      <div class="meta">
+        <span>ASTRA-PATH</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('pathCanvas');
+    const ctx = canvas.getContext('2d');
+    const progressFill = document.getElementById('progressFill');
+    const progressVal = document.getElementById('progressVal');
+    const accuracyVal = document.getElementById('accuracyVal');
+    const actionBtn = document.getElementById('actionBtn');
+    const timestamp = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const duration = 8000;
+    const startTime = Date.now();
+    const W = 240, H = 240;
+
+    const pathPoints = [];
+    const steps = 24;
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const x = 24 + t * (W - 48);
+      const y = H / 2 + Math.sin(t * Math.PI * 2) * 60;
+      pathPoints.push({ x, y });
+    }
+
+    function drawBase() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = '#2a2a2a';
+      ctx.lineWidth = 32;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+      for (let i = 1; i < pathPoints.length; i++) ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#404040';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 6]);
+      ctx.beginPath();
+      ctx.moveTo(pathPoints[0].x, pathPoints[0].y);
+      for (let i = 1; i < pathPoints.length; i++) ctx.lineTo(pathPoints[i].x, pathPoints[i].y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#22c55e';
+      ctx.beginPath();
+      ctx.arc(pathPoints[0].x, pathPoints[0].y, 6, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#737373';
+      ctx.beginPath();
+      ctx.arc(pathPoints[pathPoints.length - 1].x, pathPoints[pathPoints.length - 1].y, 6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawBase();
+
+    let drawing = false;
+    let currentStep = 0;
+    let offPathCount = 0;
+    let totalSamples = 0;
+
+    function coords(e) {
+      const r = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / r.width;
+      const scaleY = canvas.height / r.height;
+      const cx = e.clientX ?? (e.touches && e.touches[0] && e.touches[0].clientX);
+      const cy = e.clientY ?? (e.touches && e.touches[0] && e.touches[0].clientY);
+      return { x: (cx - r.left) * scaleX, y: (cy - r.top) * scaleY };
+    }
+
+    function onStart(e) {
+      if (!e.isTrusted) return;
+      e.preventDefault();
+      const p = coords(e);
+      const d = Math.hypot(p.x - pathPoints[0].x, p.y - pathPoints[0].y);
+      if (d > 24) return;
+      drawing = true;
+      ctx.strokeStyle = '#22c55e';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+    }
+
+    function onMove(e) {
+      if (!drawing || !e.isTrusted) return;
+      e.preventDefault();
+      const p = coords(e);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      totalSamples++;
+
+      const target = pathPoints[Math.min(currentStep + 1, pathPoints.length - 1)];
+      const dist = Math.hypot(p.x - target.x, p.y - target.y);
+
+      if (dist < 32) {
+        currentStep = Math.min(currentStep + 1, pathPoints.length - 1);
+        const pct = Math.round((currentStep / (pathPoints.length - 1)) * 100);
+        progressVal.textContent = pct + '%';
+        if (currentStep >= pathPoints.length - 2) {
+          progressVal.classList.add('done');
+          drawing = false;
+          handleSuccess();
+        }
+      } else if (dist > 50) {
+        offPathCount++;
+      }
+
+      const acc = totalSamples > 0 ? Math.max(0, 100 - Math.round((offPathCount / totalSamples) * 100)) : 100;
+      accuracyVal.textContent = acc + '%';
+    }
+
+    function onEnd(e) {
+      if (!e.isTrusted) return;
+      drawing = false;
+    }
+
+    canvas.addEventListener('mousedown', onStart);
+    canvas.addEventListener('touchstart', onStart, { passive: false });
+    canvas.addEventListener('mousemove', onMove);
+    canvas.addEventListener('touchmove', onMove, { passive: false });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      progressFill.style.width = (Math.max(0, duration - elapsed) / duration * 100) + '%';
+      if (elapsed < duration) requestAnimationFrame(tick);
+      else if (currentStep < pathPoints.length - 2) handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'path',
+          success: true,
+          samples: totalSamples,
+          offPath: offPathCount
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Try again';
+      actionBtn.disabled = false;
+      actionBtn.onclick = () => location.reload();
+    }
+
+    tick();
+  </script>
+</body>
+</html>

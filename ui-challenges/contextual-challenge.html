@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contextual Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --warning: #ef4444;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo { width: 32px; height: 32px; border-radius: 4px; }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 32px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .sentence-card {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .question {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      letter-spacing: -0.01em;
+    }
+
+    .options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .option-btn {
+      width: 100%;
+      padding: 14px 16px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+      letter-spacing: 0.01em;
+    }
+
+    .option-btn:hover:not(:disabled) {
+      border-color: var(--text-muted);
+    }
+
+    .option-btn.wrong {
+      opacity: 0.25;
+      border-color: var(--warning);
+    }
+
+    .option-btn.correct {
+      background: var(--accent);
+      color: var(--bg);
+      border-color: var(--accent);
+    }
+
+    .option-btn:disabled {
+      cursor: not-allowed;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item { text-align: center; }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.done { color: var(--accent); }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover { background: #fff; }
+    .action-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Contextual Challenge</span>
+    </div>
+
+    <div class="instruction">Answer from context</div>
+    <div class="instruction-sub">Read the statement and answer the question below.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="sentence-card" id="sentenceCard"></div>
+    <div class="question" id="questionText"></div>
+    <div class="options" id="optionsList"></div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="attemptsVal">0</div>
+        <div class="status-label">Attempts</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="timeVal">6.0s</div>
+        <div class="status-label">Time</div>
+      </div>
+    </div>
+
+    <div class="hint">Select the correct answer</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting...</button>
+      <div class="meta">
+        <span>ASTRA-CONTEXTUAL</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const sentenceCard = document.getElementById('sentenceCard');
+    const questionText = document.getElementById('questionText');
+    const optionsList = document.getElementById('optionsList');
+    const progressFill = document.getElementById('progressFill');
+    const attemptsVal = document.getElementById('attemptsVal');
+    const timeVal = document.getElementById('timeVal');
+    const actionBtn = document.getElementById('actionBtn');
+    const timestamp = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const duration = 6000;
+    const startTime = Date.now();
+
+    const scenarios = [
+      { sentence: 'The user clicked the blue button on the login page.', question: 'What color was the button?', options: ['Red', 'Blue', 'Green'], answer: 'Blue' },
+      { sentence: 'The form had three fields: name, email, and password.', question: 'How many fields were in the form?', options: ['Two', 'Three', 'Four'], answer: 'Three' },
+      { sentence: 'The login page was shown at 10:30 in the morning.', question: 'When was the page shown?', options: ['Morning', 'Afternoon', 'Evening'], answer: 'Morning' },
+      { sentence: 'She bought four apples and two oranges at the store.', question: 'How many oranges did she buy?', options: ['One', 'Two', 'Four'], answer: 'Two' },
+      { sentence: 'The package arrived on Tuesday afternoon in a green box.', question: 'What color was the box?', options: ['Blue', 'Green', 'Brown'], answer: 'Green' },
+      { sentence: 'The server restarted successfully after the update completed.', question: 'What happened to the server?', options: ['Crashed', 'Restarted', 'Paused'], answer: 'Restarted' }
+    ];
+
+    function escapeText(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    const scenario = scenarios[Math.floor(Math.random() * scenarios.length)];
+    sentenceCard.textContent = scenario.sentence;
+    questionText.textContent = scenario.question;
+
+    let attempts = 0;
+    let finished = false;
+
+    const shuffled = scenario.options.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    shuffled.forEach(option => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = option;
+      btn.addEventListener('click', function(e) {
+        if (!e.isTrusted || finished) return;
+        attempts++;
+        attemptsVal.textContent = attempts;
+        if (option === scenario.answer) {
+          finished = true;
+          btn.classList.add('correct');
+          document.querySelectorAll('.option-btn').forEach(b => { if (b !== btn) b.disabled = true; });
+          handleSuccess();
+        } else {
+          btn.classList.add('wrong');
+          btn.disabled = true;
+        }
+      });
+      optionsList.appendChild(btn);
+    });
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+      timeVal.textContent = (remaining / 1000).toFixed(1) + 's';
+      if (finished) return;
+      if (remaining > 0) requestAnimationFrame(tick);
+      else handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      attemptsVal.classList.add('done');
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'contextual',
+          success: true,
+          attempts: attempts
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Try again';
+      actionBtn.disabled = false;
+      actionBtn.onclick = () => location.reload();
+    }
+
+    tick();
+  </script>
+</body>
+</html>

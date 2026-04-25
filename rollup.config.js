@@ -83,67 +83,7 @@ export default [
       }),
       production && terser()
     ],
-    external: ['react', 'vue', '@angular/core']
-  },
-
-  // React Integration
-  {
-    input: 'src/integrations/react.ts',
-    output: {
-      file: 'dist/esm/integrations/react.js',
-      format: 'esm',
-      sourcemap: !production
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-        outDir: 'dist/esm/integrations'
-      })
-    ],
-    external: ['react']
-  },
-
-  // Vue Integration
-  {
-    input: 'src/integrations/vue.ts',
-    output: {
-      file: 'dist/esm/integrations/vue.js',
-      format: 'esm',
-      sourcemap: !production
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-        outDir: 'dist/esm/integrations'
-      })
-    ],
-    external: ['vue']
-  },
-
-  // Angular Integration
-  {
-    input: 'src/integrations/angular.ts',
-    output: {
-      file: 'dist/esm/integrations/angular.js',
-      format: 'esm',
-      sourcemap: !production
-    },
-    plugins: [
-      resolve(),
-      commonjs(),
-      typescript({
-        tsconfig: './tsconfig.json',
-        declaration: false,
-        outDir: 'dist/esm/integrations'
-      })
-    ],
-    external: ['@angular/core']
+    external: []
   },
 
   // UMD Build (standalone)
@@ -153,12 +93,7 @@ export default [
       file: 'dist/astra-shield.umd.js',
       format: 'umd',
       name: 'ASTRAShield',
-      sourcemap: !production,
-      globals: {
-        'react': 'React',
-        'vue': 'Vue',
-        '@angular/core': 'ng'
-      }
+      sourcemap: !production
     },
     plugins: [
       replace({

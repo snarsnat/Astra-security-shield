@@ -121,13 +121,16 @@ function err(msg) {
 // ─── Framework Detection ─────────────────────────────────
 function detectFramework(projectDir) {
   const pkgPath = path.join(projectDir, 'package.json');
-  if (!fs.existsSync(pkgPath)) return null;
+  if (!fs.existsSync(pkgPath)) {
+    if (fs.existsSync(path.join(projectDir, 'index.html'))) {
+      return { name: 'static', pkg: null };
+    }
+    return null;
+  }
   const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   const deps = { ...pkg.dependencies, ...pkg.devDependencies };
 
-  // Next.js
   if (deps['next']) {
-    // Check for app router vs pages router
     const hasAppDir = fs.existsSync(path.join(projectDir, 'app'));
     const hasAppLayout = fs.existsSync(path.join(projectDir, 'app', 'layout.tsx')) ||
                          fs.existsSync(path.join(projectDir, 'app', 'layout.jsx'));
@@ -140,7 +143,6 @@ function detectFramework(projectDir) {
     };
   }
 
-  // Vite + React
   if (deps['vite'] && (deps['react'] || deps['@vitejs/plugin-react'])) {
     const srcDir = path.join(projectDir, 'src');
     const entryFile = findEntryFile(srcDir, ['main.tsx', 'main.jsx', 'index.tsx', 'index.jsx']);
@@ -153,12 +155,59 @@ function detectFramework(projectDir) {
     };
   }
 
-  // Vue
-  if (deps['vue']) {
-    return { name: 'vue', pkg };
+  if (deps['vite'] && deps['vue']) {
+    const srcDir = path.join(projectDir, 'src');
+    return {
+      name: 'vite-vue',
+      srcDir,
+      entryFile: findEntryFile(srcDir, ['main.ts', 'main.js']),
+      pkg
+    };
   }
 
-  // Vanilla/static
+  if (deps['@angular/core'] || fs.existsSync(path.join(projectDir, 'angular.json'))) {
+    const srcDir = path.join(projectDir, 'src');
+    return {
+      name: 'angular',
+      srcDir,
+      entryFile: findEntryFile(srcDir, ['main.ts', 'main.js']),
+      pkg
+    };
+  }
+
+  if (deps['nuxt'] || deps['nuxt3']) {
+    return { name: 'nuxt', pkg };
+  }
+
+  if (deps['vue']) {
+    const srcDir = path.join(projectDir, 'src');
+    return {
+      name: 'vue',
+      srcDir,
+      entryFile: findEntryFile(srcDir, ['main.ts', 'main.js']),
+      pkg
+    };
+  }
+
+  if (deps['react']) {
+    const srcDir = path.join(projectDir, 'src');
+    return {
+      name: 'react',
+      srcDir,
+      entryFile: findEntryFile(srcDir, ['index.tsx', 'index.jsx', 'main.tsx', 'main.jsx']),
+      pkg
+    };
+  }
+
+  if (deps['express'] || deps['fastify'] || deps['koa'] || deps['hono']) {
+    const entry = findEntryFile(projectDir, ['server.js', 'index.js', 'app.js', 'server.ts', 'index.ts', 'app.ts']);
+    return { name: 'express', entryFile: entry, pkg };
+  }
+
+  if (fs.existsSync(path.join(projectDir, 'index.html'))) {
+    return { name: 'static', pkg };
+  }
+
   return { name: 'static', pkg };
 }
 
@@ -859,15 +908,12 @@ export function AstraProtectedButton({ action, context, children, onVerified }: 
     ok('Created src/components/AstraProtectedButton.tsx');
 
   } else if (fw.name === 'nextjs') {
-    // Next.js: create a provider and hook
     const providerPath = path.join(projectDir, 'src', 'lib', 'astra.ts');
     fs.mkdirSync(path.dirname(providerPath), { recursive: true });
 
     const providerCode = `/**
- * ASTRA Shield — Next.js Integration
- *
- * Server components can't use the client shield directly.
- * Use this in client components or create a provider.
+ * ASTRA Shield — Next.js client module
+ * Use in client components only ("use client").
  */
 
 'use client';
@@ -882,9 +928,9 @@ export const shield = new ASTRAShield({
   mutationInterval: 3600000,
 });
 
-shield.on('ready', () => console.log('[ASTRA] 🛡️ Shield initialized'));
-shield.on('success', (data: any) => console.log('[ASTRA] ✅ Verified:', data.tier));
-shield.on('blocked', (data: any) => console.log('[ASTRA] 🚫 Blocked:', data.reason));
+shield.on('ready', () => console.log('[ASTRA] Shield initialized'));
+shield.on('success', (data: any) => console.log('[ASTRA] Verified:', data.tier));
+shield.on('blocked', (data: any) => console.log('[ASTRA] Blocked:', data.reason));
 
 export function useAstra() {
   return {
@@ -900,6 +946,182 @@ export function useAstra() {
 `;
     fs.writeFileSync(providerPath, providerCode);
     ok('Created src/lib/astra.ts (Next.js client module)');
+
+  } else if (fw.name === 'vue' || fw.name === 'vite-vue' || fw.name === 'nuxt') {
+    const libDir = path.join(projectDir, 'src', 'lib');
+    fs.mkdirSync(libDir, { recursive: true });
+    const pluginPath = path.join(libDir, 'astra.ts');
+    const pluginCode = `/**
+ * ASTRA Shield — Vue 3 plugin
+ * Register in main.ts: app.use(AstraPlugin)
+ * Access in components: const astra = inject('astra')
+ */
+
+import type { App } from 'vue';
+import { ASTRAShield } from '../../astra/index.js';
+
+export const shield = new ASTRAShield({
+  endpoint: '/api/astra/verify',
+  theme: 'auto',
+  debug: true,
+  sessionDuration: 1800000,
+  mutationInterval: 3600000,
+});
+
+shield.on('ready', () => console.log('[ASTRA] Shield initialized'));
+shield.on('success', (data: any) => console.log('[ASTRA] Verified:', data.tier));
+shield.on('blocked', (data: any) => console.log('[ASTRA] Blocked:', data.reason));
+
+export const AstraPlugin = {
+  install(app: App) {
+    app.provide('astra', {
+      protect: (action: string, ctx?: Record<string, unknown>) => shield.protect(action, ctx),
+      verify: () => shield.verify(),
+      shield,
+    });
+    app.config.globalProperties.$astra = shield;
+  }
+};
+
+export default AstraPlugin;
+`;
+    fs.writeFileSync(pluginPath, pluginCode);
+    ok('Created src/lib/astra.ts (Vue 3 plugin)');
+
+    if (fw.entryFile && fs.existsSync(fw.entryFile)) {
+      let entry = fs.readFileSync(fw.entryFile, 'utf8');
+      if (!entry.includes('AstraPlugin') && !entry.includes("from './lib/astra'")) {
+        const importLine = "import AstraPlugin from './lib/astra'\n";
+        const useLine = /\.mount\(/.test(entry)
+          ? entry.replace(/(createApp\([^)]+\))/, "$1.use(AstraPlugin)")
+          : entry + "\n// app.use(AstraPlugin)\n";
+        fs.writeFileSync(fw.entryFile, importLine + useLine);
+        ok(`Wired AstraPlugin into ${path.relative(projectDir, fw.entryFile)}`);
+      } else {
+        warn('Entry point already references AstraPlugin — skipping');
+      }
+    }
+
+  } else if (fw.name === 'angular') {
+    const libDir = path.join(projectDir, 'src', 'app');
+    fs.mkdirSync(libDir, { recursive: true });
+    const svcPath = path.join(libDir, 'astra.service.ts');
+    const svcCode = `/**
+ * ASTRA Shield — Angular service
+ * Provide in root: @Injectable({ providedIn: 'root' })
+ * Inject in components: constructor(private astra: AstraService) {}
+ */
+
+import { Injectable } from '@angular/core';
+import { ASTRAShield } from '../../astra/index.js';
+
+@Injectable({ providedIn: 'root' })
+export class AstraService {
+  private shield = new ASTRAShield({
+    endpoint: '/api/astra/verify',
+    theme: 'auto',
+    debug: true,
+    sessionDuration: 1800000,
+    mutationInterval: 3600000,
+  });
+
+  constructor() {
+    this.shield.on('ready', () => console.log('[ASTRA] Shield initialized'));
+    this.shield.on('success', (d: any) => console.log('[ASTRA] Verified:', d.tier));
+    this.shield.on('blocked', (d: any) => console.log('[ASTRA] Blocked:', d.reason));
+  }
+
+  protect(action: string, context?: Record<string, unknown>) {
+    return this.shield.protect(action, context);
+  }
+
+  verify() {
+    return this.shield.verify();
+  }
+
+  instance() {
+    return this.shield;
+  }
+}
+`;
+    fs.writeFileSync(svcPath, svcCode);
+    ok('Created src/app/astra.service.ts (Angular service)');
+
+  } else if (fw.name === 'express') {
+    const middlewarePath = path.join(projectDir, 'astra-middleware.js');
+    const mwCode = `/**
+ * ASTRA Shield — Express middleware
+ * Usage:
+ *   import { astraMiddleware } from './astra-middleware.js'
+ *   app.use(astraMiddleware())
+ * Then mount the client bundle to serve /astra/index.js + ui-challenges/.
+ */
+
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+export function astraMiddleware(options = {}) {
+  const clientDir = options.clientDir || path.join(__dirname, 'astra');
+  const uiDir = options.uiDir || path.join(__dirname, 'ui-challenges');
+
+  return function astra(req, res, next) {
+    if (req.path.startsWith('/astra/')) {
+      const file = path.join(clientDir, req.path.replace('/astra/', ''));
+      if (fs.existsSync(file)) return res.sendFile(file);
+    }
+    if (req.path.startsWith('/ui-challenges/')) {
+      const file = path.join(uiDir, req.path.replace('/ui-challenges/', ''));
+      if (fs.existsSync(file)) return res.sendFile(file);
+    }
+    next();
+  };
+}
+`;
+    fs.writeFileSync(middlewarePath, mwCode);
+    ok('Created astra-middleware.js (Express)');
+
+    if (fw.entryFile && fs.existsSync(fw.entryFile)) {
+      let entry = fs.readFileSync(fw.entryFile, 'utf8');
+      if (!entry.includes('astraMiddleware')) {
+        const hint = `\n// ASTRA Shield middleware\n// import { astraMiddleware } from './astra-middleware.js'\n// app.use(astraMiddleware())\n`;
+        fs.writeFileSync(fw.entryFile, entry + hint);
+        ok(`Added ASTRA hint to ${path.relative(projectDir, fw.entryFile)}`);
+      }
+    }
+
+  } else if (fw.name === 'static') {
+    const htmlPath = path.join(projectDir, 'index.html');
+    if (fs.existsSync(htmlPath)) {
+      let html = fs.readFileSync(htmlPath, 'utf8');
+      if (!html.includes('astra/index.js') && !html.includes('ASTRAShield')) {
+        const snippet = `\n  <script type="module">
+    import { ASTRAShield } from './astra/index.js';
+    const shield = new ASTRAShield({
+      endpoint: '/api/astra/verify',
+      theme: 'auto',
+      debug: true,
+    });
+    shield.on('ready', () => console.log('[ASTRA] Shield initialized'));
+    shield.on('success', (d) => console.log('[ASTRA] Verified:', d.tier));
+    shield.on('blocked', (d) => console.log('[ASTRA] Blocked:', d.reason));
+    window.astra = shield;
+  </script>\n`;
+        if (html.includes('</body>')) {
+          html = html.replace('</body>', snippet + '</body>');
+        } else {
+          html += snippet;
+        }
+        fs.writeFileSync(htmlPath, html);
+        ok('Injected ASTRA bootstrap script into index.html');
+      } else {
+        warn('index.html already references ASTRA — skipping');
+      }
+    } else {
+      warn('No index.html found — create one and import ./astra/index.js');
+    }
   }
   console.log();
 

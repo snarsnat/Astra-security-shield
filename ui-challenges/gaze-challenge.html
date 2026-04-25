@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gaze Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo { width: 32px; height: 32px; border-radius: 4px; }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 240px;
+      height: 240px;
+      margin: 0 auto 24px;
+      position: relative;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .gaze-target {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      transition: left 1.2s ease, top 1.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gaze-target::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 50%;
+    }
+
+    .gaze-target.locked {
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.15);
+    }
+
+    .gaze-cursor {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border: 1px solid var(--text);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: left 0.05s linear, top 0.05s linear;
+    }
+
+    .mode-pill {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item { text-align: center; }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.done { color: var(--accent); }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover { background: #fff; }
+    .action-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container { padding: 32px 24px; }
+      .challenge-area { width: 220px; height: 220px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Gaze Challenge</span>
+    </div>
+
+    <div class="instruction">Follow the target</div>
+    <div class="instruction-sub">Keep your cursor on the circle as it moves. Camera optional — mouse tracked when unavailable.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="mode-pill" id="modePill">Cursor tracking mode</div>
+
+    <div class="challenge-area" id="gazeArea">
+      <div class="gaze-target" id="gazeTarget"></div>
+      <div class="gaze-cursor" id="gazeCursor"></div>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="lockVal">0.0s</div>
+        <div class="status-label">Locked</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="requiredVal">1.5s</div>
+        <div class="status-label">Required</div>
+      </div>
+    </div>
+
+    <div class="hint">Stay inside the circle</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Tracking...</button>
+      <div class="meta">
+        <span>ASTRA-GAZE</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const area = document.getElementById('gazeArea');
+    const target = document.getElementById('gazeTarget');
+    const cursor = document.getElementById('gazeCursor');
+    const progressFill = document.getElementById('progressFill');
+    const lockVal = document.getElementById('lockVal');
+    const actionBtn = document.getElementById('actionBtn');
+    const timestamp = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const duration = 6000;
+    const requiredLock = 1500;
+    const startTime = Date.now();
+    let locked = 0;
+    let finished = false;
+
+    const positions = [
+      { x: 30, y: 30 }, { x: 170, y: 30 },
+      { x: 30, y: 170 }, { x: 170, y: 170 },
+      { x: 100, y: 100 }
+    ];
+    let posIndex = 0;
+    function moveTarget() {
+      posIndex = (posIndex + 1) % positions.length;
+      const p = positions[posIndex];
+      target.style.left = p.x + 'px';
+      target.style.top = p.y + 'px';
+    }
+    moveTarget();
+    const moveTimer = setInterval(() => { if (!finished) moveTarget(); }, 1500);
+
+    function targetCenter() {
+      return { x: parseFloat(target.style.left) + 20, y: parseFloat(target.style.top) + 20 };
+    }
+
+    function onMove(e) {
+      if (!e.isTrusted || finished) return;
+      const r = area.getBoundingClientRect();
+      const x = e.clientX - r.left;
+      const y = e.clientY - r.top;
+      cursor.style.left = x + 'px';
+      cursor.style.top = y + 'px';
+    }
+
+    document.addEventListener('mousemove', onMove);
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      progressFill.style.width = (Math.max(0, duration - elapsed) / duration * 100) + '%';
+
+      const cx = parseFloat(cursor.style.left) || -100;
+      const cy = parseFloat(cursor.style.top) || -100;
+      const t = targetCenter();
+      const dist = Math.hypot(cx - t.x, cy - t.y);
+
+      if (dist < 28) {
+        locked += 16;
+        target.classList.add('locked');
+        if (locked >= requiredLock) {
+          finished = true;
+          clearInterval(moveTimer);
+          lockVal.classList.add('done');
+          return handleSuccess();
+        }
+      } else {
+        locked = Math.max(0, locked - 8);
+        target.classList.remove('locked');
+      }
+      lockVal.textContent = (locked / 1000).toFixed(1) + 's';
+
+      if (elapsed < duration) requestAnimationFrame(tick);
+      else handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'gaze',
+          success: true,
+          lockedMs: locked
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Try again';
+      actionBtn.disabled = false;
+      actionBtn.onclick = () => location.reload();
+    }
+
+    tick();
+  </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rhythm Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo { width: 32px; height: 32px; border-radius: 4px; }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 100%;
+      margin-bottom: 32px;
+    }
+
+    .pad-row {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-bottom: 16px;
+    }
+
+    .rhythm-pad {
+      width: 72px;
+      height: 72px;
+      background: var(--surface-alt);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.1s ease;
+    }
+
+    .rhythm-pad.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: var(--bg);
+      transform: scale(0.95);
+    }
+
+    .rhythm-pad.cue {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .wave {
+      height: 40px;
+      position: relative;
+      overflow: hidden;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+    }
+
+    .wave-marker {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 2px;
+      background: var(--accent);
+      opacity: 0.6;
+    }
+
+    .wave-scan {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      width: 2px;
+      background: var(--text);
+      left: 0;
+      transition: left 0.05s linear;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item { text-align: center; }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.done { color: var(--accent); }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover { background: #fff; }
+
+    .action-btn:disabled {
+      background: var(--border);
+      color: var(--text-muted);
+      cursor: not-allowed;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Rhythm Challenge</span>
+    </div>
+
+    <div class="instruction">Tap the rhythm pattern</div>
+    <div class="instruction-sub">Listen for cues then tap each pad in sequence. Match the timing.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area">
+      <div class="pad-row">
+        <div class="rhythm-pad" id="pad1" data-index="0">1</div>
+        <div class="rhythm-pad" id="pad2" data-index="1">2</div>
+        <div class="rhythm-pad" id="pad3" data-index="2">3</div>
+      </div>
+      <div class="wave" id="wave">
+        <div class="wave-scan" id="waveScan"></div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="progressVal">0/3</div>
+        <div class="status-label">Progress</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="patternVal">1-2-3</div>
+        <div class="status-label">Pattern</div>
+      </div>
+    </div>
+
+    <div class="hint">Tap pads in order</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting...</button>
+      <div class="meta">
+        <span>ASTRA-RHYTHM</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const progressFill = document.getElementById('progressFill');
+    const actionBtn = document.getElementById('actionBtn');
+    const progressVal = document.getElementById('progressVal');
+    const waveScan = document.getElementById('waveScan');
+    const wave = document.getElementById('wave');
+    const timestamp = document.getElementById('timestamp');
+    const pads = [document.getElementById('pad1'), document.getElementById('pad2'), document.getElementById('pad3')];
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const duration = 6000;
+    const pattern = [600, 1200, 1800];
+    const tolerance = 400;
+    const startTime = Date.now();
+    let currentStep = 0;
+    let hits = [];
+
+    pattern.forEach(t => {
+      const m = document.createElement('div');
+      m.className = 'wave-marker';
+      m.style.left = ((t / duration) * 100) + '%';
+      wave.appendChild(m);
+    });
+
+    function highlightCue() {
+      const elapsed = Date.now() - startTime;
+      pads.forEach((pad, i) => {
+        pad.classList.remove('cue');
+        if (i >= currentStep && Math.abs(elapsed - pattern[i]) < 300) {
+          pad.classList.add('cue');
+        }
+      });
+    }
+
+    function handleTap(i) {
+      if (currentStep !== i) return;
+      const elapsed = Date.now() - startTime;
+      const expected = pattern[currentStep];
+      if (Math.abs(elapsed - expected) <= tolerance) {
+        pads[currentStep].classList.add('active');
+        hits.push(elapsed);
+        currentStep++;
+        progressVal.textContent = currentStep + '/3';
+        if (navigator.vibrate) navigator.vibrate(30);
+        if (currentStep >= 3) {
+          progressVal.classList.add('done');
+          handleSuccess();
+        }
+      }
+    }
+
+    pads.forEach(pad => {
+      pad.addEventListener('click', function(e) {
+        if (!e.isTrusted) return;
+        handleTap(parseInt(pad.dataset.index, 10));
+      });
+      pad.addEventListener('touchstart', function(e) {
+        if (!e.isTrusted) return;
+        e.preventDefault();
+        handleTap(parseInt(pad.dataset.index, 10));
+      });
+    });
+
+    function updateProgress() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+      waveScan.style.left = ((elapsed / duration) * 100) + '%';
+      highlightCue();
+      if (remaining > 0) requestAnimationFrame(updateProgress);
+      else handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'rhythm',
+          success: true,
+          hits: hits
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      if (currentStep < 3) {
+        actionBtn.textContent = 'Try again';
+        actionBtn.disabled = false;
+        actionBtn.onclick = () => location.reload();
+      }
+    }
+
+    updateProgress();
+  </script>
+</body>
+</html>

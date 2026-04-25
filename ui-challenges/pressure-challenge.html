@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pressure Challenge - Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-alt: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e5e5e5;
+      --text-muted: #737373;
+      --accent: #22c55e;
+      --font: 'Space Grotesk', system-ui, sans-serif;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .logo { width: 32px; height: 32px; border-radius: 4px; }
+
+    .header-text {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .instruction {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .instruction-sub {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      line-height: 1.4;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 3px;
+      background: var(--border);
+      margin-bottom: 40px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 100%;
+      transition: width 0.1s linear;
+    }
+
+    .challenge-area {
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 32px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .pressure-ring {
+      position: absolute;
+      inset: 0;
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      transition: border-color 0.15s ease;
+    }
+
+    .pressure-ring.target {
+      border-color: var(--accent);
+    }
+
+    .pressure-circle {
+      width: 100px;
+      height: 100px;
+      background: var(--surface-alt);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.05s linear, border-color 0.15s ease;
+      transform: scale(0.8);
+    }
+
+    .pressure-circle.active {
+      border-color: var(--accent);
+    }
+
+    .pressure-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--accent);
+      height: 0%;
+      transition: height 0.05s linear;
+      opacity: 0.35;
+    }
+
+    .status {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+
+    .status-item { text-align: center; }
+
+    .status-value {
+      font-size: 20px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .status-value.done { color: var(--accent); }
+
+    .status-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+    }
+
+    .hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .action-area {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--font);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.02em;
+    }
+
+    .action-btn:hover { background: #fff; }
+    .action-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 16px;
+      font-size: 10px;
+      color: #404040;
+    }
+
+    @media (max-width: 400px) {
+      .container { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
+      <span class="header-text">Pressure Challenge</span>
+    </div>
+
+    <div class="instruction">Hold with pressure</div>
+    <div class="instruction-sub">Press and hold the circle until the ring fills. Uses Force Touch when available.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area" id="challengeArea">
+      <div class="pressure-ring" id="pressureRing"></div>
+      <div class="pressure-circle" id="pressureCircle">
+        <div class="pressure-fill" id="pressureFill"></div>
+      </div>
+    </div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="pressureVal">0%</div>
+        <div class="status-label">Pressure</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="holdVal">0.0s</div>
+        <div class="status-label">Hold</div>
+      </div>
+    </div>
+
+    <div class="hint" id="hint">Press and hold</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting...</button>
+      <div class="meta">
+        <span>ASTRA-PRESSURE</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const challengeArea = document.getElementById('challengeArea');
+    const pressureCircle = document.getElementById('pressureCircle');
+    const pressureRing = document.getElementById('pressureRing');
+    const pressureFill = document.getElementById('pressureFill');
+    const pressureVal = document.getElementById('pressureVal');
+    const holdVal = document.getElementById('holdVal');
+    const progressFill = document.getElementById('progressFill');
+    const actionBtn = document.getElementById('actionBtn');
+    const timestamp = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const duration = 6000;
+    const requiredHoldMs = 2000;
+    const targetPct = 80;
+    const startTime = Date.now();
+    let pressure = 0;
+    let holding = false;
+    let holdStart = 0;
+    let holdAccum = 0;
+    let forceAvailable = false;
+
+    function updateView() {
+      pressureCircle.style.transform = `scale(${0.8 + (pressure / 100) * 0.4})`;
+      pressureFill.style.height = pressure + '%';
+      pressureVal.textContent = Math.round(pressure) + '%';
+      if (pressure >= targetPct) {
+        pressureRing.classList.add('target');
+        pressureCircle.classList.add('active');
+      } else {
+        pressureRing.classList.remove('target');
+        pressureCircle.classList.remove('active');
+      }
+    }
+
+    function onStart(e) {
+      if (!e.isTrusted) return;
+      e.preventDefault();
+      holding = true;
+      holdStart = Date.now();
+    }
+
+    function onEnd(e) {
+      if (!e.isTrusted) return;
+      holding = false;
+      holdAccum = 0;
+    }
+
+    function onForce(e) {
+      if (!e.isTrusted) return;
+      if (typeof e.webkitForce === 'number') {
+        forceAvailable = true;
+        pressure = Math.min(100, (e.webkitForce / 3) * 100);
+        updateView();
+      }
+    }
+
+    challengeArea.addEventListener('mousedown', onStart);
+    challengeArea.addEventListener('touchstart', onStart, { passive: false });
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchend', onEnd);
+    challengeArea.addEventListener('webkitmouseforcechanged', onForce);
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      progressFill.style.width = (Math.max(0, duration - elapsed) / duration * 100) + '%';
+
+      if (!forceAvailable) {
+        if (holding) pressure = Math.min(100, pressure + 2);
+        else pressure = Math.max(0, pressure - 3);
+      }
+      updateView();
+
+      if (pressure >= targetPct) {
+        holdAccum += 16;
+        holdVal.textContent = (holdAccum / 1000).toFixed(1) + 's';
+        if (holdAccum >= requiredHoldMs) {
+          holdVal.classList.add('done');
+          pressureVal.classList.add('done');
+          return handleSuccess();
+        }
+      } else {
+        holdAccum = 0;
+        holdVal.textContent = '0.0s';
+      }
+
+      if (elapsed < duration) requestAnimationFrame(tick);
+      else handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'pressure',
+          success: true,
+          forceAvailable: forceAvailable
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Try again';
+      actionBtn.disabled = false;
+      actionBtn.onclick = () => location.reload();
+    }
+
+    tick();
+  </script>
+</body>
+</html>
