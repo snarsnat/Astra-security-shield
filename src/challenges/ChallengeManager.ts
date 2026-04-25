@@ -1192,4 +1192,108 @@ export class ChallengeManager {
       setTimeout(() => overlay.remove(), 300);
     }
   }
+
+  /**
+   * Show a friendly retry notice without leaving the overlay.
+   * Used after 1–2 failures (low impact) — keeps the user in flow with a small
+   * encouragement message before the next challenge mounts.
+   */
+  showRetryNotice(message: string, attemptsRemaining: number): void {
+    const container = document.querySelector('.astra-container');
+    if (!container) return;
+    const notice = document.createElement('div');
+    notice.className = 'astra-retry-notice';
+    notice.style.cssText = [
+      'position:absolute', 'left:50%', 'top:24px', 'transform:translateX(-50%)',
+      'background:#1a1a1a', 'color:#f5f5f5', 'border:1px solid #2a2a2a',
+      'padding:10px 16px', 'font-size:13px', 'font-family:Space Grotesk, sans-serif',
+      'opacity:0', 'transition:opacity 200ms ease', 'z-index:10', 'pointer-events:none',
+      'letter-spacing:0.01em',
+    ].join(';');
+    notice.textContent = `${message}${attemptsRemaining > 0 ? ` · ${attemptsRemaining} left` : ''}`;
+    container.appendChild(notice);
+    requestAnimationFrame(() => { notice.style.opacity = '1'; });
+    setTimeout(() => {
+      notice.style.opacity = '0';
+      setTimeout(() => notice.remove(), 220);
+    }, 1800);
+  }
+
+  /**
+   * Render the full-screen cooldown / hard-block screen.
+   *
+   * Triggered when the server reports `hardBlock: true` (5+ failures inside
+   * the failure window). Reload-resistant: the SDK calls /api/astra/status on
+   * init, so even if the user refreshes the page during the cooldown the
+   * server returns `cooldown: true` again and this screen is re-rendered.
+   *
+   * `seconds` controls the visible countdown; `onComplete` fires when it
+   * reaches zero so the SDK can re-check status server-side rather than
+   * trust the client-side timer.
+   */
+  showCooldown(seconds: number, opts: {
+    onComplete?: () => void;
+    headline?: string;
+    subMessage?: string;
+  } = {}): void {
+    this.removeOverlay();
+
+    const headline = opts.headline || "You've failed a lot of challenges";
+    const subMessage = opts.subMessage || 'Astra detected suspicious repeated attempts. Please wait before trying again.';
+    const total = Math.max(1, Math.floor(seconds));
+
+    const overlay = document.createElement('div');
+    overlay.id = 'astra-cooldown-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.cssText = [
+      'position:fixed', 'inset:0', 'background:#0a0a0a', 'color:#f5f5f5',
+      'display:flex', 'flex-direction:column', 'align-items:center', 'justify-content:center',
+      'padding:32px 24px', 'text-align:center',
+      'font-family:Space Grotesk,-apple-system,BlinkMacSystemFont,sans-serif',
+      'z-index:2147483647',
+    ].join(';');
+
+    overlay.innerHTML = `
+      <div style="max-width:480px;width:100%;border:1px solid #1f1f1f;background:#111111;padding:48px 32px 40px;position:relative;">
+        <div style="position:absolute;left:0;right:0;top:0;border-top:2px solid #ef4444;"></div>
+        <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;color:#888;margin-bottom:32px;">ASTRA SHIELD</div>
+        <div style="width:56px;height:56px;border:1.5px solid #ef4444;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;background:rgba(239,68,68,0.12);">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 7 12 12 15 14"/>
+          </svg>
+        </div>
+        <h1 style="font-size:22px;font-weight:600;line-height:1.3;margin:0 0 12px;">${headline}</h1>
+        <p style="font-size:14px;color:#888;line-height:1.5;margin:0 0 32px;">${subMessage}</p>
+        <div id="astra-cd-timer" style="font-size:84px;font-weight:700;letter-spacing:-0.04em;line-height:1;color:#ef4444;margin-bottom:8px;font-variant-numeric:tabular-nums;">${total}</div>
+        <div style="font-size:11px;letter-spacing:0.18em;color:#888;text-transform:uppercase;margin-bottom:32px;">Seconds remaining</div>
+        <div style="height:2px;background:#1f1f1f;width:100%;margin-bottom:28px;overflow:hidden;">
+          <div id="astra-cd-progress" style="height:100%;background:#ef4444;width:100%;transition:width 1s linear;"></div>
+        </div>
+        <p style="font-size:12px;color:#888;line-height:1.5;border-top:1px solid #1f1f1f;padding-top:20px;margin:0;">This helps keep bots out while giving real users a fair chance.</p>
+        <div style="margin-top:24px;font-size:10px;letter-spacing:0.16em;color:#888;text-transform:uppercase;">COOLDOWN ACTIVE</div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+    this.activeOverlay = overlay;
+
+    let remaining = total;
+    const timerEl = overlay.querySelector('#astra-cd-timer') as HTMLElement | null;
+    const progEl = overlay.querySelector('#astra-cd-progress') as HTMLElement | null;
+
+    const tick = () => {
+      if (timerEl) timerEl.textContent = String(remaining);
+      if (progEl) progEl.style.width = `${Math.max(0, (remaining / total) * 100)}%`;
+      if (remaining <= 0) {
+        // Don't trust the client clock — let the SDK re-check status.
+        if (opts.onComplete) opts.onComplete();
+        return;
+      }
+      remaining -= 1;
+      setTimeout(tick, 1000);
+    };
+    tick();
+  }
 }

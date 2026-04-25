@@ -11,17 +11,117 @@ declare global {
   var astraApiKeys: Map<string, any>;
   var astraRateLimits: Map<string, { count: number; resetAt: number }>;
   var astraChallenges: Map<string, any>;
+  var astraBlocks: Map<string, { failureCount: number; riskScore: number; tier: number; blockedUntil: number; lastSeen: number }>;
 }
 
 if (!globalThis.astraSessions) globalThis.astraSessions = new Map();
 if (!globalThis.astraApiKeys) globalThis.astraApiKeys = new Map();
 if (!globalThis.astraRateLimits) globalThis.astraRateLimits = new Map();
 if (!globalThis.astraChallenges) globalThis.astraChallenges = new Map();
+if (!globalThis.astraBlocks) globalThis.astraBlocks = new Map();
 
 const sessions = globalThis.astraSessions;
 const apiKeys = globalThis.astraApiKeys;
 const rateLimits = globalThis.astraRateLimits;
 export const challenges = globalThis.astraChallenges;
+const blocks = globalThis.astraBlocks;
+
+const MAX_BLOCKS = 10_000;
+const BLOCK_TTL_MS = 10 * 60_000; // 10 min hard block
+const FAILURE_HARD_BLOCK = 5;     // 5+ failures → hard block
+const FAILURE_ESCALATE_1 = 2;     // 2+ failures → bump one tier
+const FAILURE_ESCALATE_2 = 3;     // 3+ failures → jump to Gate
+const FAILURE_WINDOW_MS = 30 * 60_000; // forget failures older than 30min
+
+function hashFingerprint(clientData: any, ip: string): string {
+  const fp = clientData?.fingerprints || {};
+  const parts = [
+    String(fp.canvas || fp.canvasHash || ''),
+    String(fp.webgl || fp.webglHash || ''),
+    String(fp.webglRenderer || ''),
+    String(fp.audio || fp.audioHash || ''),
+    String(fp.fonts?.length || 0),
+    String(fp.hardwareConcurrency || ''),
+    String(fp.deviceMemory || ''),
+    String(fp.timezone || ''),
+    String(fp.screenResolution || ''),
+    String(fp.platform || ''),
+    ip
+  ];
+  const joined = parts.join('|');
+  // FNV-1a 64-bit lite → hex string (no crypto import needed)
+  let h1 = 0x811c9dc5, h2 = 0xdeadbeef;
+  for (let i = 0; i < joined.length; i++) {
+    const c = joined.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 16777619);
+    h2 = Math.imul(h2 ^ c, 2246822507);
+  }
+  return ((h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0'));
+}
+
+function pruneBlocks() {
+  if (blocks.size <= MAX_BLOCKS) return;
+  const now = Date.now();
+  for (const [k, v] of blocks) {
+    if (v.blockedUntil < now && now - v.lastSeen > FAILURE_WINDOW_MS) blocks.delete(k);
+  }
+}
+
+function getBlockRecord(key: string) {
+  let rec = blocks.get(key);
+  if (!rec) return null;
+  const now = Date.now();
+  if (rec.blockedUntil < now && now - rec.lastSeen > FAILURE_WINDOW_MS) {
+    blocks.delete(key);
+    return null;
+  }
+  return rec;
+}
+
+function isHardBlocked(key: string): { blocked: boolean; retryAfter: number } {
+  const rec = getBlockRecord(key);
+  if (!rec) return { blocked: false, retryAfter: 0 };
+  const now = Date.now();
+  if (rec.blockedUntil > now) return { blocked: true, retryAfter: Math.ceil((rec.blockedUntil - now) / 1000) };
+  return { blocked: false, retryAfter: 0 };
+}
+
+function escalateTier(baseTier: number, key: string): number {
+  const rec = getBlockRecord(key);
+  if (!rec) return baseTier;
+  if (rec.failureCount >= FAILURE_ESCALATE_2) return 4;
+  if (rec.failureCount >= FAILURE_ESCALATE_1) return Math.min(4, baseTier + 1);
+  return baseTier;
+}
+
+export function recordChallengeFailure(key: string, tier: number): { hardBlock: boolean; retryAfter: number; failureCount: number } {
+  pruneBlocks();
+  const now = Date.now();
+  const rec = blocks.get(key) || { failureCount: 0, riskScore: 0, tier, blockedUntil: 0, lastSeen: now };
+  rec.failureCount++;
+  rec.lastSeen = now;
+  rec.riskScore = Math.min(1, rec.riskScore + 0.25);
+  rec.tier = Math.max(rec.tier, tier);
+  let hardBlock = false;
+  let retryAfter = 0;
+  if (rec.failureCount >= FAILURE_HARD_BLOCK) {
+    rec.blockedUntil = now + BLOCK_TTL_MS;
+    hardBlock = true;
+    retryAfter = Math.ceil(BLOCK_TTL_MS / 1000);
+  }
+  blocks.set(key, rec);
+  return { hardBlock, retryAfter, failureCount: rec.failureCount };
+}
+
+export function recordChallengeSuccess(key: string) {
+  const rec = blocks.get(key);
+  if (!rec) return;
+  rec.failureCount = Math.max(0, rec.failureCount - 2);
+  rec.riskScore = Math.max(0, rec.riskScore - 0.2);
+  rec.lastSeen = Date.now();
+}
+
+export { blocks as astraBlocks, hashFingerprint, getBlockRecord, isHardBlocked, escalateTier };
 
 interface SessionData {
   id: string;
@@ -167,19 +267,31 @@ function determineTier(riskScore: number): number {
   return 4;
 }
 
-function generateChallenge(tier: number, sessionId: string): any {
-  const types = ['pulse', 'tilt', 'flick', 'breath'];
-  const diffs = ['easy', 'medium', 'hard'];
-  const type = types[Math.floor(Math.random() * types.length)];
-  const diff = diffs[Math.min(tier - 1, 2)];
+function generateChallenge(tier: number, sessionId: string, fpKey?: string, prevType?: string): any {
+  const all = ['pulse', 'tilt', 'flick', 'breath', 'rhythm', 'pressure', 'path', 'semantic'];
+  // After multiple failures, switch challenge type for variety (humans handle variety, bots struggle).
+  const pool = prevType ? all.filter(t => t !== prevType) : all;
+  const diffs = ['easy', 'medium', 'hard', 'extreme'];
+  const type = pool[Math.floor(Math.random() * pool.length)];
+  const diff = diffs[Math.min(Math.max(tier - 1, 0), diffs.length - 1)];
   const id = `chal_${crypto.randomUUID()}`;
   const instructions: Record<string, string> = {
     pulse: 'Tap along with the rhythm.',
     tilt: 'Tilt your device or drag to balance the ball.',
     flick: 'Swipe in the indicated direction.',
     breath: 'Follow the breathing circle.',
+    rhythm: 'Tap the rhythm pattern.',
+    pressure: 'Hold with steady pressure.',
+    path: 'Trace the path.',
+    semantic: 'Tap the correct shape.',
   };
-  const challenge = { id, type, difficulty: diff, sessionId, expiresAt: Date.now() + 300_000, instructions: instructions[type] || 'Complete the challenge.', attempts: 0 };
+  const challenge = {
+    id, type, difficulty: diff, sessionId, fpKey,
+    expiresAt: Date.now() + 300_000,
+    instructions: instructions[type] || 'Complete the challenge.',
+    attempts: 0,
+    tier,
+  };
   challenges.set(id, challenge);
   return challenge;
 }
@@ -212,16 +324,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { clientData, action } = req.body;
+    const fpKey = hashFingerprint(clientData, ip as string);
+
+    // Reload defense: check persistent block BEFORE any session logic
+    const hardBlock = isHardBlocked(fpKey);
+    if (hardBlock.blocked) {
+      return res.status(403).json({
+        success: false,
+        tier: 4,
+        reason: 'hard_blocked',
+        blocked: true,
+        retryAfter: hardBlock.retryAfter,
+        blockReason: 'Too many failed verification attempts. Try again later.',
+        fpKey,
+      });
+    }
+
     const session = getOrCreateSession(ip as string, req.headers['user-agent'] || '', clientData?.sessionId);
 
     const behaviorScore = analyzeBehavior(clientData);
     const fingerprintResult = analyzeFingerprint(clientData);
     const contextResult = analyzeContext(req);
     const compositeScore = calculateCompositeScore(behaviorScore, fingerprintResult.score, contextResult.score, session.trustScore);
-    const tier = determineTier(compositeScore);
+    let tier = determineTier(compositeScore);
+    // Carry forward failure-based tier escalation — survives page reload
+    tier = escalateTier(tier, fpKey);
 
     session.riskScores.push(compositeScore);
-    // Cap riskScores array to prevent unbounded memory growth
     if (session.riskScores.length > 20) {
       session.riskScores = session.riskScores.slice(-20);
     }
@@ -232,15 +361,47 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       session.trustScore = session.trustScore * 0.7 + (1 - avg) * 0.3;
     }
 
-    if (compositeScore > 0.7) {
-      return res.json({ success: false, tier, reason: 'blocked', riskScore: compositeScore, blockReason: 'High risk score — automated behavior detected', sessionId: session.id, details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score } });
+    const blockRec = getBlockRecord(fpKey);
+    const carriedFailures = blockRec?.failureCount || 0;
+
+    if (compositeScore > 0.7 || tier >= 4) {
+      const challenge = generateChallenge(Math.max(tier, 4), session.id, fpKey);
+      return res.json({
+        success: false,
+        tier,
+        reason: carriedFailures >= FAILURE_ESCALATE_2 ? 'gate_required' : 'challenge_required',
+        riskScore: compositeScore,
+        challenge,
+        sessionId: session.id,
+        fpKey,
+        carriedFailures,
+        details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score }
+      });
     }
-    if (compositeScore > 0.3) {
-      const challenge = generateChallenge(tier, session.id);
-      return res.json({ success: false, tier, reason: 'challenge_required', riskScore: compositeScore, challenge, sessionId: session.id, details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score } });
+    if (compositeScore > 0.3 || carriedFailures > 0) {
+      const challenge = generateChallenge(tier, session.id, fpKey);
+      return res.json({
+        success: false,
+        tier,
+        reason: 'challenge_required',
+        riskScore: compositeScore,
+        challenge,
+        sessionId: session.id,
+        fpKey,
+        carriedFailures,
+        details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score }
+      });
     }
 
-    return res.json({ success: true, tier, reason: 'verified', riskScore: compositeScore, sessionId: session.id, details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score, message: tier === 0 ? 'Invisible verification — no friction applied' : 'Minimal friction applied' } });
+    return res.json({
+      success: true,
+      tier,
+      reason: 'verified',
+      riskScore: compositeScore,
+      sessionId: session.id,
+      fpKey,
+      details: { behaviorScore, fingerprintAnomalies: fingerprintResult.anomalies, contextScore: contextResult.score, message: tier === 0 ? 'Invisible verification — no friction applied' : 'Minimal friction applied' }
+    });
   } catch (error: any) {
     console.error('[ASTRA] Verification error:', error);
     return res.status(500).json({ success: false, reason: 'server_error', error: process.env.NODE_ENV === 'development' ? error.message : undefined });

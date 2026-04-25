@@ -368,12 +368,35 @@ export class ASTRAShield implements ISTRAShield {
               type: challengeData.type,
               timestamp: Date.now()
             });
+          } else if (result.cooldown || result.hardBlock || result.reason === 'cooldown_active') {
+            // Server reports the fingerprint hit the hard-block threshold.
+            // Render the full-screen cooldown — reload-resistant via /api/astra/status.
+            const seconds = result.retryAfter || 60;
+            this.challengeManager.showCooldown(seconds, {
+              headline: result.message,
+              subMessage: result.subMessage,
+            });
+            this.emit('blocked', { reason: 'cooldown_active', attempts: result.failureCount || 0 });
+            this.options.onBlocked({ reason: 'cooldown_active', attempts: result.failureCount || 0 });
+            resolve({
+              success: false,
+              tier: 4,
+              blocked: true,
+              reason: 'cooldown_active',
+            });
           } else {
+            // Soft failure — show a friendly retry notice in the overlay.
+            const remaining = typeof result.attemptsRemaining === 'number' ? result.attemptsRemaining : 0;
+            this.challengeManager.showRetryNotice(
+              remaining > 0 ? "That didn't work — let's try again." : 'Switching to a different challenge...',
+              remaining
+            );
             resolve({
               success: false,
               tier: this.currentTier,
-              blocked: true,
-              reason: result.reason || 'challenge_failed'
+              blocked: remaining <= 0,
+              reason: result.reason || 'challenge_failed',
+              attempts: result.failureCount || 1,
             });
           }
         } catch (error) {

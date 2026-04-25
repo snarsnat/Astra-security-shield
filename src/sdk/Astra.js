@@ -108,12 +108,118 @@ class Astra {
         this._startTracking();
       }
 
+      // Reload-resistant cooldown check: ask the server if this fingerprint
+      // is currently inside a hard-block window. If so, render the cooldown
+      // screen before any protected action mounts.
+      if (typeof window !== 'undefined') {
+        try {
+          const status = await this._checkCooldownStatus();
+          if (status && status.cooldown && status.retryAfter > 0) {
+            this._renderCooldownScreen(status.retryAfter, status);
+          }
+        } catch (e) {
+          this._log(`Status check failed: ${e.message}`);
+        }
+      }
+
       this._ready = true;
       this._emit('ready', { sessionId: this._sessionId });
       this._log('ASTRA SDK initialized');
     } catch (err) {
       this._error(`Failed to initialize: ${err.message}`);
     }
+  }
+
+  /**
+   * Ask the server whether this fingerprint+session is currently under an
+   * active hard-block (cooldown). Survives page reloads — the SDK is meant
+   * to call this on init and before any protect() flow.
+   */
+  async _checkCooldownStatus() {
+    if (typeof window === 'undefined') return null;
+    try {
+      const fingerprints = this._collectFingerprints();
+      const url = (this.serverUrl || '') + '/api/astra/status';
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: this._sessionId,
+          clientData: { fingerprints, deviceInfo: this._getDeviceInfo() }
+        }),
+      });
+      if (!r.ok) return null;
+      return await r.json();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /**
+   * Render the cooldown / hard-block screen. Self-contained — does not depend
+   * on the (TS) ChallengeManager so it can run from the JS SDK in any host.
+   * On timer completion, re-checks status server-side; the screen stays up
+   * if the fingerprint is still blocked.
+   */
+  _renderCooldownScreen(seconds, info) {
+    if (typeof document === 'undefined') return;
+    const existing = document.getElementById('astra-cooldown-overlay');
+    if (existing) existing.remove();
+
+    const total = Math.max(1, Math.floor(seconds));
+    const headline = (info && info.message) || "You've failed a lot of challenges";
+    const subMessage = (info && info.subMessage) || 'Astra detected suspicious repeated attempts. Please wait before trying again.';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'astra-cooldown-overlay';
+    overlay.setAttribute('role', 'alertdialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.style.cssText = 'position:fixed;inset:0;background:#0a0a0a;color:#f5f5f5;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px;text-align:center;font-family:Space Grotesk,-apple-system,BlinkMacSystemFont,sans-serif;z-index:2147483647';
+    overlay.innerHTML = `
+      <div style="max-width:480px;width:100%;border:1px solid #1f1f1f;background:#111111;padding:48px 32px 40px;position:relative;">
+        <div style="position:absolute;left:0;right:0;top:0;border-top:2px solid #ef4444;"></div>
+        <div style="font-size:12px;font-weight:600;letter-spacing:0.2em;color:#888;margin-bottom:32px;">ASTRA SHIELD</div>
+        <div style="width:56px;height:56px;border:1.5px solid #ef4444;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:24px;background:rgba(239,68,68,0.12);">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#ef4444" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <polyline points="12 7 12 12 15 14"/>
+          </svg>
+        </div>
+        <h1 style="font-size:22px;font-weight:600;line-height:1.3;margin:0 0 12px;">${headline}</h1>
+        <p style="font-size:14px;color:#888;line-height:1.5;margin:0 0 32px;">${subMessage}</p>
+        <div id="astra-cd-timer" style="font-size:84px;font-weight:700;letter-spacing:-0.04em;line-height:1;color:#ef4444;margin-bottom:8px;font-variant-numeric:tabular-nums;">${total}</div>
+        <div style="font-size:11px;letter-spacing:0.18em;color:#888;text-transform:uppercase;margin-bottom:32px;">Seconds remaining</div>
+        <div style="height:2px;background:#1f1f1f;width:100%;margin-bottom:28px;overflow:hidden;">
+          <div id="astra-cd-progress" style="height:100%;background:#ef4444;width:100%;transition:width 1s linear;"></div>
+        </div>
+        <p style="font-size:12px;color:#888;line-height:1.5;border-top:1px solid #1f1f1f;padding-top:20px;margin:0;">This helps keep bots out while giving real users a fair chance.</p>
+        <div style="margin-top:24px;font-size:10px;letter-spacing:0.16em;color:#888;text-transform:uppercase;">COOLDOWN ACTIVE</div>
+      </div>`;
+    document.body.appendChild(overlay);
+    this._emit('blocked', { reason: 'cooldown_active', retryAfter: total });
+
+    let remaining = total;
+    const timerEl = overlay.querySelector('#astra-cd-timer');
+    const progEl = overlay.querySelector('#astra-cd-progress');
+    const self = this;
+
+    const tick = () => {
+      if (timerEl) timerEl.textContent = String(remaining);
+      if (progEl) progEl.style.width = `${Math.max(0, (remaining / total) * 100)}%`;
+      if (remaining <= 0) {
+        // Re-check server-side; if still blocked, re-render with the remaining time.
+        self._checkCooldownStatus().then(status => {
+          overlay.remove();
+          if (status && status.cooldown && status.retryAfter > 0) {
+            self._renderCooldownScreen(status.retryAfter, status);
+          }
+        }).catch(() => { overlay.remove(); });
+        return;
+      }
+      remaining -= 1;
+      setTimeout(tick, 1000);
+    };
+    tick();
   }
 
   // ─── Core Methods ─────────────────────────────────────────
@@ -158,6 +264,17 @@ class Astra {
           timestamp: Date.now()
         }
       });
+
+      // Hard-block / cooldown response — render the cooldown screen and stop.
+      // Reload-resistant: even if user refreshes mid-action the server still
+      // says cooldown:true and the screen comes back.
+      if (result.cooldown || result.reason === 'cooldown_active' || result.reason === 'hard_blocked') {
+        if (typeof window !== 'undefined' && result.retryAfter > 0) {
+          this._renderCooldownScreen(result.retryAfter, result);
+        }
+        this._emit('blocked', result);
+        return { success: false, reason: 'cooldown_active', retryAfter: result.retryAfter };
+      }
 
       // Handle result
       if (result.success) {
