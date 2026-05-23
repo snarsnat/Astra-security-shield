@@ -1248,6 +1248,40 @@ export { shield };
   }
   console.log();
 
+  // ─── Step 13: Generate app token ──────────────────────
+  step(13, 'Generating app token...');
+  const crypto = await import('crypto');
+  const appId = crypto.randomUUID();
+  const dirHash = crypto.createHash('sha256').update(projectDir).digest('hex').slice(0, 12);
+  const appTokenPayload = {
+    type: 'astra_app_token',
+    v: 1,
+    appId,
+    projectName,
+    dirHash,
+    version: '2.1.0',
+    createdAt: new Date().toISOString(),
+  };
+  const appToken = Buffer.from(JSON.stringify(appTokenPayload)).toString('base64url');
+
+  // Save token to .astra/app-token.txt in project dir
+  const astraDir = path.join(projectDir, '.astra');
+  fs.mkdirSync(astraDir, { recursive: true });
+  fs.writeFileSync(path.join(astraDir, 'app-token.txt'), appToken, 'utf8');
+  fs.writeFileSync(path.join(astraDir, 'config.json'), JSON.stringify({ appId, projectName, version: '2.1.0', createdAt: new Date().toISOString() }, null, 2), 'utf8');
+
+  // Add .astra/app-token.txt to .gitignore
+  const gitignorePath = path.join(projectDir, '.gitignore');
+  const gitignoreEntry = '\n# Astra Shield\n.astra/app-token.txt\n';
+  if (fs.existsSync(gitignorePath)) {
+    const gi = fs.readFileSync(gitignorePath, 'utf8');
+    if (!gi.includes('.astra/app-token.txt')) fs.appendFileSync(gitignorePath, gitignoreEntry);
+  } else {
+    fs.writeFileSync(gitignorePath, gitignoreEntry.trimStart());
+  }
+  ok('App token generated');
+  console.log();
+
   // ─── Done ─────────────────────────────────────────────
   console.log(`${C.green}${C.bold}╔══════════════════════════════════════════════════════════╗${C.reset}`);
   console.log(`${C.green}${C.bold}║  ✓ "${projectName}" is now protected by ASTRA Shield    ║${C.reset}`);
@@ -1275,6 +1309,20 @@ export { shield };
   console.log(`  ${C.dim}if (result.success) { /* proceed */ }${C.reset}`);
   console.log();
   console.log(`${C.dim}  Use \`astra list\` to see all protected apps${C.reset}`);
+
+  // ─── App token display ────────────────────────────────
+  console.log();
+  console.log(`${C.bold}${C.yellow}Your app token — connect to dashboard:${C.reset}`);
+  console.log(`${C.dim}${'─'.repeat(55)}${C.reset}`);
+  console.log();
+  console.log(`${C.cyan}${appToken}${C.reset}`);
+  console.log();
+  console.log(`${C.dim}  1. Go to ${C.reset}${C.bold}https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+  console.log(`${C.dim}  2. Click ${C.reset}${C.bold}+ Add app${C.reset}${C.dim} and paste this token${C.reset}`);
+  console.log(`${C.dim}  3. Token also saved to: ${path.join(astraDir, 'app-token.txt')}${C.reset}`);
+  console.log();
+  console.log(`${C.yellow}!${C.reset} ${C.dim}Keep this token private — do not commit it to git${C.reset}`);
+  console.log();
 }
 
 async function cmdList() {
