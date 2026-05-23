@@ -30,7 +30,11 @@ const ASTRA_CONFIG_DIR = path.join(os.homedir(), '.astra');
 const ASTRA_CONFIG_FILE = path.join(ASTRA_CONFIG_DIR, 'config.json');
 const ASTRA_APPS_FILE = path.join(ASTRA_CONFIG_DIR, 'apps.json');
 
-const VERSION = '2.0.0';
+let VERSION = '2.1.1';
+try {
+  const pkgPath = path.join(ASTRA_ROOT, 'package.json');
+  if (fs.existsSync(pkgPath)) VERSION = JSON.parse(fs.readFileSync(pkgPath, 'utf8')).version || VERSION;
+} catch {}
 
 // ─── Colors ───────────────────────────────────────────────
 const C = {
