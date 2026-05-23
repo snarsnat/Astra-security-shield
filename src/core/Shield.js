@@ -21,6 +21,8 @@ class ASTRAShield {
       storagePrefix: options.storagePrefix || 'astra_',
       sessionDuration: options.sessionDuration || 30 * 60 * 1000, // 30 minutes
       mutationInterval: options.mutationInterval || 60 * 60 * 1000, // 1 hour
+      appToken: options.appToken || null,
+      telemetryEndpoint: options.telemetryEndpoint || 'https://astra-shield-site.vercel.app/api/events/ingest',
       ...options
     };
 
@@ -97,6 +99,7 @@ class ASTRAShield {
     } catch (error) {
       this.log('Initialization error:', error);
       this.emit('error', { type: 'init', error });
+      this.sendTelemetry('error', { reason: 'init_failed' });
     }
   }
 
@@ -223,6 +226,7 @@ class ASTRAShield {
     if (tier !== this.currentTier) {
       this.currentTier = tier;
       this.emit('tierChange', { tier, oosScore });
+      this.sendTelemetry('tier_change', { tier: String(tier) });
     }
 
     // Execute tier-appropriate response
@@ -274,6 +278,7 @@ class ASTRAShield {
   async showChallenge(tier) {
     return new Promise((resolve) => {
       this.emit('challenge', { tier, type: 'starting' });
+      this.sendTelemetry('challenged', { tier: String(tier) });
 
       // Track challenge start time for happiness metrics
       const challengeStart = Date.now();
@@ -290,6 +295,7 @@ class ASTRAShield {
             type: result.type,
             duration: completionTime
           });
+          this.sendTelemetry('passed', { tier: String(result.tier), challenge: result.type });
 
           // Update session trust
           this.session.increaseTrust();
@@ -304,6 +310,7 @@ class ASTRAShield {
             reason: result.reason,
             attempts: result.attempts
           });
+          this.sendTelemetry('blocked', { reason: result.reason, tier: String(result.tier || '') });
           resolve({
             success: false,
             reason: result.reason,
@@ -312,6 +319,25 @@ class ASTRAShield {
         }
       });
     });
+  }
+
+  /**
+   * Fire-and-forget telemetry to the Astra dashboard.
+   * Requires appToken to be set. Silently no-ops if missing.
+   */
+  sendTelemetry(type, payload = {}) {
+    if (!this.options.appToken || !this.options.telemetryEndpoint) return;
+    try {
+      const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+      const device = /Mobi|Android/i.test(ua) ? 'mobile' : /Tablet|iPad/i.test(ua) ? 'tablet' : 'desktop';
+      const browser = /Edg\//i.test(ua) ? 'Edge' : /OPR\//i.test(ua) ? 'Opera' : /Chrome/i.test(ua) ? 'Chrome' : /Firefox/i.test(ua) ? 'Firefox' : /Safari/i.test(ua) ? 'Safari' : 'Other';
+      fetch(this.options.telemetryEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-App-Token': this.options.appToken },
+        body: JSON.stringify({ type, device, browser, ...payload }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
   }
 
   /**
