@@ -1,6 +1,6 @@
 {
   "name": "astra-shield",
-  "version": "2.1.4",
+  "version": "2.1.5",
   "description": "Invisible bot detection & human verification — the best security is the security you never notice",
   "type": "module",
   "main": "src/index.js",

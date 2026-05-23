@@ -230,13 +230,23 @@ class ASTRAShield {
     }
 
     // Execute tier-appropriate response
-    return await this.tierEngine.handleAction(tier, {
+    const result = await this.tierEngine.handleAction(tier, {
       action,
       context,
       shield: this,
       session: this.session,
       detector: this.detector
     });
+
+    // Log every protect() call as telemetry (challenges/blocks logged separately in showChallenge)
+    if (result && !result.challenged) {
+      this.sendTelemetry(result.success === false ? 'blocked' : 'passed', {
+        tier: String(tier),
+        reason: result.reason || null,
+      });
+    }
+
+    return result;
   }
 
   /**
