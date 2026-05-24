@@ -152,21 +152,70 @@ Dashboard (astra-shield-site.vercel.app)
   └─ GET /api/apps/stats → Supabase → charts
 ```
 
+## Bot Lockout
+
+After 3 **consecutive** failed challenges, session locks for 10 minutes:
+
+```javascript
+const shield = new ASTRAShield({
+  appToken: 'your-token',
+  maxChallengeFailures: 3,       // consecutive failures before lockout (default: 3)
+  lockoutCooldownMs: 600000,     // lockout duration in ms (default: 10 min)
+});
+
+shield.on('blocked', ({ reason, status, retryIn, remainingAttempts }) => {
+  if (reason === 'bot_lockout') {
+    // session locked — show retryIn seconds to user
+  } else {
+    // challenge failed — show remainingAttempts warning
+  }
+});
+```
+
+**Human path:** fail → warned with `remainingAttempts` → pass any challenge → counter resets → never locked.  
+**Bot path:** fail 3 consecutive → locked 10min → fails again immediately → re-locked.
+
 ## Changelog
 
+### 2.4.1
+- Lockout now tracks **consecutive** failures only — passing any challenge resets counter to 0
+- Lockout lifts after cooldown (default 10min) — humans who struggle get another chance
+- `retryIn` (seconds) returned on lockout response
+- `remainingAttempts` returned on each non-lockout failure
+
+### 2.4.0
+- Bot lockout after N consecutive failed challenges → `{ success: false, blocked: true, reason: 'bot_lockout', status: 403 }`
+- Configurable via `maxChallengeFailures` and `lockoutCooldownMs`
+- `locked` event added to listener types
+
 ### 2.3.0
-- Signal silence detection — bots with no pointer movement now flagged at `silenceAnomaly: 0.75`
+- Signal silence detection — bots with no pointer movement flagged at `silenceAnomaly: 0.75`
+- Clicks + zero pointer movement → 0.75, keyboard only → 0.30, total darkness after 5s → 0.25
+- Score escalates with time since page load
 - Rebalanced OOS weights (headless 0.28, silence 0.14)
 
 ### 2.2.0
-- Headless browser detection (webdriver flag, automation globals, WebGL renderer, canvas fingerprint)
-- Shannon entropy mouse path analysis
-- IP reputation with auto-escalation (proxy/datacenter → blocked)
-- Atomic daily stats via Supabase RPC
+- Headless browser detection: `navigator.webdriver`, missing `window.chrome`, zero plugins, 20 automation globals, WebGL SwiftShader/llvmpipe renderer, canvas fingerprint
+- Shannon entropy mouse path analysis (8-octant bucketing)
+- IP reputation via ip-api.com — proxy/datacenter IPs auto-escalated to `blocked`
+- Atomic daily stats increment via Supabase RPC (`ON CONFLICT DO UPDATE SET col = col + 1`)
 
 ### 2.1.0
-- Cloud dashboard and app token system
-- Supabase telemetry pipeline
+- Cloud dashboard at astra-shield-site.vercel.app
+- App token system — `astra connect` links project to dashboard
+- Supabase telemetry pipeline (events + daily_stats tables)
+- OAuth sign-in (GitHub + Google) — apps persist across sessions/devices
+
+### 2.0.0
+- 5-tier friction model (Ghost → Whisper → Nudge → Pause → Gate)
+- 11 challenge types
+- OOS scoring engine with weighted behavioral signals
+- `astra add` CLI command copies SDK into any project
+
+### 1.0.0
+- Initial release — behavioral tracking (mouse, click, keyboard, scroll, touch)
+- Session fingerprinting
+- Basic bot detection
 
 ## License
 
