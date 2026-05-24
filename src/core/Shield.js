@@ -40,6 +40,7 @@ class ASTRAShield {
       challenge: [],
       success: [],
       blocked: [],
+      locked: [],
       tierChange: [],
       error: []
     };
@@ -48,6 +49,11 @@ class ASTRAShield {
     this.isInitialized = false;
     this.isVerifying = false;
     this.activeChallenge = null;
+
+    // Bot lockout — after MAX_CHALLENGE_FAILURES consecutive failures, session is locked
+    this.failedChallenges = 0;
+    this.botLockout = false;
+    this.MAX_CHALLENGE_FAILURES = this.options.maxChallengeFailures ?? 3;
 
     // Bind methods
     this.protect = this.protect.bind(this);
@@ -214,6 +220,13 @@ class ASTRAShield {
       await this.init();
     }
 
+    // Hard lockout — session burned after too many failed challenges
+    if (this.botLockout) {
+      this.sendTelemetry('blocked', { reason: 'bot_lockout', tier: String(this.currentTier) });
+      this.emit('blocked', { reason: 'bot_lockout', status: 403 });
+      return { success: false, blocked: true, reason: 'bot_lockout', status: 403 };
+    }
+
     this.log(`Protecting action: ${action}`);
 
     // Get current OOS score
@@ -316,16 +329,29 @@ class ASTRAShield {
             duration: completionTime
           });
         } else {
-          this.emit('blocked', {
-            reason: result.reason,
-            attempts: result.attempts
-          });
-          this.sendTelemetry('blocked', { reason: result.reason, tier: String(result.tier || '') });
-          resolve({
-            success: false,
-            reason: result.reason,
-            attempts: result.attempts
-          });
+          this.failedChallenges += 1;
+
+          if (this.failedChallenges >= this.MAX_CHALLENGE_FAILURES) {
+            this.botLockout = true;
+            this.log(`Bot lockout triggered after ${this.failedChallenges} failed challenges`);
+            this.sendTelemetry('blocked', { reason: 'bot_lockout', tier: String(result.tier || '') });
+            this.emit('blocked', { reason: 'bot_lockout', status: 403 });
+            resolve({ success: false, blocked: true, reason: 'bot_lockout', status: 403 });
+          } else {
+            this.emit('blocked', {
+              reason: result.reason,
+              attempts: result.attempts,
+              failedChallenges: this.failedChallenges,
+              remainingAttempts: this.MAX_CHALLENGE_FAILURES - this.failedChallenges,
+            });
+            this.sendTelemetry('blocked', { reason: result.reason, tier: String(result.tier || '') });
+            resolve({
+              success: false,
+              reason: result.reason,
+              attempts: result.attempts,
+              remainingAttempts: this.MAX_CHALLENGE_FAILURES - this.failedChallenges,
+            });
+          }
         }
       });
     });
