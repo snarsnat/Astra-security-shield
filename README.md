@@ -170,4 +170,4 @@ Dashboard (astra-shield-site.vercel.app)
 
 ## License
 
-MIT © [Nausheen Suraj](https://github.com/snarsnat)
+MIT © [Snarsnat](https://github.com/snarsnat)
