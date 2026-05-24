@@ -41,7 +41,10 @@ export class Detector {
       touchAnomaly: 0,
       sessionAnomaly: 0,
       headlessAnomaly: 0,
+      silenceAnomaly: 0,
     };
+
+    this.initTime = Date.now();
 
     // Last event timestamps for velocity calculation
     this.lastMouseMove = null;
@@ -244,6 +247,40 @@ export class Detector {
     this.scores.touchAnomaly = this.analyzeTouchPattern();
     this.scores.sessionAnomaly = this.analyzeSessionPattern();
     this.scores.headlessAnomaly = this.detectHeadless();
+    this.scores.silenceAnomaly = this.detectSignalSilence();
+  }
+
+  // Absent behavioral signals are themselves a signal.
+  // Real users always generate some mouse/touch/scroll data within seconds.
+  // Bots that skip mouse simulation get caught here.
+  detectSignalSilence() {
+    const age = Date.now() - this.initTime;
+    if (age < 3000) return 0; // grace period for slow page loads
+
+    const hasMouseData = this.data.mouseMovements.length > 0;
+    const hasTouchData = this.data.touches.length > 0 || this.data.touchMoves.length > 0;
+    const hasScrollData = this.data.scrolls.length > 0;
+    const hasKeyData   = this.data.keystrokes.length > 0;
+    const hasClicks    = this.data.clicks.length > 0;
+
+    // Natural pointer movement detected — not silent
+    if (hasMouseData || hasTouchData) return 0;
+
+    let score = 0;
+
+    // Clicks with zero pointer movement — strongest bot signal
+    if (hasClicks) score += 0.75;
+
+    // Keyboard input but no pointer — suspicious on desktop, less so on mobile
+    if (hasKeyData && !hasClicks) score += 0.3;
+
+    // Total darkness: page loaded, actions taken, zero bio-signals
+    if (!hasScrollData && !hasKeyData && !hasClicks && age > 5000) score += 0.25;
+
+    // Signal grows with time — longer silence = more suspicious
+    if (age > 10000) score += 0.15;
+
+    return Math.min(1, score);
   }
 
   detectHeadless() {
@@ -516,15 +553,16 @@ export class Detector {
     this.performAnalysis();
 
     // Calculate weighted score
-    // headlessAnomaly gets highest weight — environment signals are most reliable
+    // headlessAnomaly + silenceAnomaly get highest weight — most reliable signals
     const weights = {
-      mouseAnomaly: 0.14,
-      clickAnomaly: 0.14,
-      scrollAnomaly: 0.08,
-      keyboardAnomaly: 0.12,
-      touchAnomaly: 0.10,
-      sessionAnomaly: 0.12,
-      headlessAnomaly: 0.30,
+      mouseAnomaly:    0.12,
+      clickAnomaly:    0.11,
+      scrollAnomaly:   0.07,
+      keyboardAnomaly: 0.10,
+      touchAnomaly:    0.08,
+      sessionAnomaly:  0.10,
+      headlessAnomaly: 0.28,
+      silenceAnomaly:  0.14,
     };
 
     let score = 0;
@@ -579,8 +617,11 @@ export class Detector {
       scrollAnomaly: 0,
       keyboardAnomaly: 0,
       touchAnomaly: 0,
-      sessionAnomaly: 0
+      sessionAnomaly: 0,
+      headlessAnomaly: 0,
+      silenceAnomaly: 0,
     };
+    this.initTime = Date.now();
 
     this.keystrokeTimings = [];
     this.clickTimings = [];
