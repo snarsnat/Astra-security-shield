@@ -96,8 +96,59 @@ export class Session {
       screenHeight: window.screen.height,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       touchEnabled: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
-      cookieEnabled: navigator.cookieEnabled
+      cookieEnabled: navigator.cookieEnabled,
+      canvasFingerprint: this.getCanvasFingerprint(),
+      webgl: this.getWebGLInfo(),
+      pluginCount: navigator.plugins ? navigator.plugins.length : 0,
+      hardwareConcurrency: navigator.hardwareConcurrency || null,
+      deviceMemory: navigator.deviceMemory || null,
     };
+  }
+
+  getCanvasFingerprint() {
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 50;
+      const ctx = canvas.getContext('2d');
+      ctx.textBaseline = 'top';
+      ctx.font = '14px Arial';
+      ctx.fillStyle = '#f60';
+      ctx.fillRect(125, 1, 62, 20);
+      ctx.fillStyle = '#069';
+      ctx.fillText('Astra\u{1F6E1}', 2, 15);
+      ctx.fillStyle = 'rgba(102,204,0,0.7)';
+      ctx.fillText('Astra\u{1F6E1}', 4, 17);
+      const data = canvas.toDataURL();
+      let hash = 0;
+      for (let i = 0; i < data.length; i++) {
+        hash = Math.imul(31, hash) + data.charCodeAt(i) | 0;
+      }
+      return hash.toString(36);
+    } catch {
+      return null;
+    }
+  }
+
+  getWebGLInfo() {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (!gl) return { renderer: null, vendor: null };
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      if (ext) {
+        return {
+          renderer: gl.getParameter(ext.UNMASKED_RENDERER_WEBGL),
+          vendor: gl.getParameter(ext.UNMASKED_VENDOR_WEBGL),
+        };
+      }
+      return {
+        renderer: gl.getParameter(gl.RENDERER),
+        vendor: gl.getParameter(gl.VENDOR),
+      };
+    } catch {
+      return { renderer: null, vendor: null };
+    }
   }
 
   /**

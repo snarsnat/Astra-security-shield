@@ -39,7 +39,8 @@ export class Detector {
       scrollAnomaly: 0,
       keyboardAnomaly: 0,
       touchAnomaly: 0,
-      sessionAnomaly: 0
+      sessionAnomaly: 0,
+      headlessAnomaly: 0,
     };
 
     // Last event timestamps for velocity calculation
@@ -236,23 +237,93 @@ export class Detector {
    * Perform analysis and update scores
    */
   performAnalysis() {
-    // Analyze mouse patterns
     this.scores.mouseAnomaly = this.analyzeMousePattern();
-
-    // Analyze click patterns
     this.scores.clickAnomaly = this.analyzeClickPattern();
-
-    // Analyze scroll patterns
     this.scores.scrollAnomaly = this.analyzeScrollPattern();
-
-    // Analyze keyboard patterns
     this.scores.keyboardAnomaly = this.analyzeKeyboardPattern();
-
-    // Analyze touch patterns
     this.scores.touchAnomaly = this.analyzeTouchPattern();
-
-    // Analyze session patterns
     this.scores.sessionAnomaly = this.analyzeSessionPattern();
+    this.scores.headlessAnomaly = this.detectHeadless();
+  }
+
+  detectHeadless() {
+    let score = 0;
+    const nav = typeof navigator !== 'undefined' ? navigator : null;
+    const win = typeof window !== 'undefined' ? window : null;
+    if (!nav || !win) return 0;
+
+    // Explicit webdriver flag — set by Selenium/Puppeteer/Playwright unless patched
+    if (nav.webdriver === true) score += 1.0;
+
+    // Chrome UA but missing window.chrome — headless Chrome default
+    if (/Chrome/.test(nav.userAgent) && !win.chrome) score += 0.6;
+
+    // No browser plugins — real browsers always have at least one
+    if (nav.plugins && nav.plugins.length === 0) score += 0.3;
+
+    // Empty language list
+    if (!nav.languages || nav.languages.length === 0) score += 0.4;
+
+    // Known automation globals (Phantom, Selenium, Playwright, NightmareJS)
+    const botGlobals = [
+      '_phantom', '__phantomas', 'callPhantom',
+      '_selenium', '__webdriver_evaluate', '__selenium_evaluate',
+      '__webdriver_script_function', '__webdriver_script_func',
+      '__webdriver_script_fn', '__fxdriver_evaluate',
+      '__driver_unwrapped', '__webdriver_unwrapped',
+      '__driver_evaluate', '__selenium_unwrapped',
+      '__fxdriver_unwrapped', '__playwright', '__pw_manual',
+      '_Selenium_IDE_Recorder', '__nightmare',
+    ];
+    if (botGlobals.some(g => g in win)) score += 0.9;
+
+    // Outer window dimensions 0 — default headless Chrome viewport
+    if (win.outerWidth === 0 || win.outerHeight === 0) score += 0.4;
+
+    // Software WebGL renderer — headless browsers use SwiftShader/llvmpipe
+    const webgl = this.session?.metadata?.webgl;
+    if (webgl?.renderer) {
+      const r = webgl.renderer.toLowerCase();
+      if (['swiftshader', 'llvmpipe', 'softpipe', 'mesa', 'software rasterizer'].some(s => r.includes(s))) {
+        score += 0.7;
+      }
+    }
+
+    // Canvas fingerprint missing — bots sometimes block canvas
+    if (this.session?.metadata?.canvasFingerprint === null) score += 0.3;
+
+    // Error object missing stack — some minimal JS engines
+    try { null.x; } catch (e) { if (!e.stack) score += 0.2; }
+
+    return Math.min(1, score);
+  }
+
+  analyzeMouseEntropy() {
+    const directions = this.data.mouseMovements
+      .filter(m => m.direction !== undefined)
+      .map(m => m.direction);
+
+    if (directions.length < 20) return 0;
+
+    // Bucket into 8 octants
+    const buckets = new Array(8).fill(0);
+    for (const d of directions) {
+      const octant = Math.floor(((d + Math.PI) / (2 * Math.PI)) * 8) % 8;
+      buckets[octant]++;
+    }
+
+    const total = directions.length;
+    let entropy = 0;
+    for (const count of buckets) {
+      if (count > 0) {
+        const p = count / total;
+        entropy -= p * Math.log2(p);
+      }
+    }
+
+    // Max entropy = log2(8) = 3. Low entropy = bot-like robotic paths.
+    const normalized = entropy / 3;
+    return normalized < 0.5 ? (0.5 - normalized) * 0.8 : 0;
   }
 
   /**
@@ -288,6 +359,9 @@ export class Detector {
       const dirVariance = this.getDirectionVariance(directions);
       if (dirVariance < 0.1) anomaly += 0.3;
     }
+
+    // Low path entropy — bots move in predictable patterns even with jitter
+    anomaly += this.analyzeMouseEntropy() * 0.4;
 
     return Math.min(1, anomaly);
   }
@@ -442,13 +516,15 @@ export class Detector {
     this.performAnalysis();
 
     // Calculate weighted score
+    // headlessAnomaly gets highest weight — environment signals are most reliable
     const weights = {
-      mouseAnomaly: 0.2,
-      clickAnomaly: 0.2,
-      scrollAnomaly: 0.1,
-      keyboardAnomaly: 0.15,
-      touchAnomaly: 0.15,
-      sessionAnomaly: 0.2
+      mouseAnomaly: 0.14,
+      clickAnomaly: 0.14,
+      scrollAnomaly: 0.08,
+      keyboardAnomaly: 0.12,
+      touchAnomaly: 0.10,
+      sessionAnomaly: 0.12,
+      headlessAnomaly: 0.30,
     };
 
     let score = 0;
