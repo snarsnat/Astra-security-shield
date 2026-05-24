@@ -6,27 +6,26 @@
   <title>Astra Verification</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&family=Geist+Mono:wght@300..700&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --border: #2a2a2a;
-      --text: #e5e5e5;
-      --text-muted: #737373;
-      --accent: #22c55e;
-      --font: 'Space Grotesk', system-ui, sans-serif;
+      --bg:          #f8f9fa;
+      --surface:     #ffffff;
+      --surface-alt: #f1f3f5;
+      --border:      #ced4da;
+      --text:        #111418;
+      --text-2:      #495057;
+      --text-muted:  #6c757d;
+      --accent:      #ad1a04;
+      --font:        'IBM Plex Sans', system-ui, sans-serif;
+      --mono:        'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
     }
 
     body {
       font-family: var(--font);
-      background: transparent;
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       display: flex;
@@ -34,14 +33,21 @@
       justify-content: center;
       padding: 20px;
       -webkit-font-smoothing: antialiased;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(206,212,218,0.45) 0px,
+        rgba(206,212,218,0.45) 1px,
+        transparent 1px,
+        transparent 24px
+      );
     }
 
     .overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
+      background: rgba(241,243,245,0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -51,7 +57,7 @@
 
     @keyframes fadeIn {
       from { opacity: 0; }
-      to { opacity: 1; }
+      to   { opacity: 1; }
     }
 
     .container {
@@ -59,112 +65,114 @@
       max-width: 360px;
       background: var(--surface);
       border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
       padding: 40px 32px;
       position: relative;
-      animation: slideUp 0.3s ease;
+      animation: slideUp 0.25s ease;
     }
 
     @keyframes slideUp {
-      from {
-        opacity: 0;
-        transform: scale(0.98) translateY(8px);
-      }
-      to {
-        opacity: 1;
-        transform: scale(1) translateY(0);
-      }
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .logo {
-      width: 48px;
-      height: 48px;
-      border-radius: 8px;
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       margin-bottom: 32px;
-      display: block;
+    }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .wordmark .tri { color: var(--accent); font-size: 0.7em; }
+
+    .shield-icon {
+      width: 56px;
+      height: 56px;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .shield-icon svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--accent);
+      stroke-width: 1.8;
+      fill: none;
     }
 
     .title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      letter-spacing: -0.02em;
+      font-family: var(--font);
+      font-size: 20px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      letter-spacing: -0.015em;
+    }
+
+    .rule {
+      width: 28px;
+      height: 2px;
+      background: var(--accent);
+      margin-bottom: 16px;
     }
 
     .subtitle {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-muted);
-      line-height: 1.5;
+      line-height: 1.55;
       margin-bottom: 32px;
-    }
-
-    .divider {
-      width: 32px;
-      height: 2px;
-      background: var(--accent);
-      margin-bottom: 24px;
     }
 
     .action-btn {
       width: 100%;
-      padding: 14px 20px;
+      padding: 13px 20px;
       background: var(--text);
       color: var(--bg);
       border: none;
-      font-family: var(--font);
-      font-size: 14px;
-      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: all 0.15s ease;
-      letter-spacing: 0.01em;
+      transition: background 150ms ease;
     }
-
-    .action-btn:hover {
-      background: #fff;
-      transform: translateY(-1px);
-    }
-
-    .action-btn:active {
-      transform: translateY(0);
-    }
+    .action-btn:hover { background: #000; }
 
     .timestamp {
       position: absolute;
-      bottom: 16px;
+      bottom: 14px;
       right: 16px;
-      font-size: 10px;
-      color: #404040;
-      font-variant-numeric: tabular-nums;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
 
-    .shield-icon {
-      width: 64px;
-      height: 64px;
-      margin: 0 auto 24px;
-      border: 2px solid var(--accent);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .shield-icon svg {
-      width: 32px;
-      height: 32px;
-      stroke: var(--accent);
-      stroke-width: 2;
-      fill: none;
-    }
-
-    @media (max-width: 400px) {
-      .container {
-        padding: 32px 24px;
-      }
-    }
+    @media (max-width: 400px) { .container { padding: 32px 24px; } }
   </style>
 </head>
 <body>
   <div class="overlay">
     <div class="container">
+      <div class="header">
+        <span class="wordmark"><span class="tri">▲</span> Astra</span>
+      </div>
+
       <div class="shield-icon">
         <svg viewBox="0 0 24 24">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -172,7 +180,7 @@
       </div>
 
       <h1 class="title">Verify you're human</h1>
-      <div class="divider"></div>
+      <div class="rule"></div>
       <p class="subtitle">Complete a quick challenge to confirm you're a real person, not automated software.</p>
 
       <button class="action-btn" id="proceedBtn">Proceed to challenge</button>
@@ -199,14 +207,12 @@
           challenge: randomChallenge
         }, window.location.origin);
       } else {
-        // Validate challenge name against allowlist before navigation
         if (ALLOWED_CHALLENGES.has(randomChallenge)) {
           window.location.href = randomChallenge + '-challenge.html';
         }
       }
     });
 
-    // Listen for messages from Astra SDK with origin validation
     window.addEventListener('message', function(event) {
       if (event.origin !== window.location.origin) return;
       if (event.data && event.data.type === 'astra-init') {

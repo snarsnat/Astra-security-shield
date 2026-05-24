@@ -3,22 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Microchain Challenge - Astra</title>
+  <title>Microchain Challenge — Astra</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&family=Geist+Mono:wght@300..700&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --surface-alt: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #e5e5e5;
-      --text-muted: #737373;
-      --accent: #22c55e;
-      --font: 'Space Grotesk', system-ui, sans-serif;
+      --bg:          #f8f9fa;
+      --surface:     #ffffff;
+      --surface-alt: #f1f3f5;
+      --border:      #ced4da;
+      --text:        #111418;
+      --text-muted:  #6c757d;
+      --accent:      #ad1a04;
+      --font:        'IBM Plex Sans', system-ui, sans-serif;
+      --mono:        'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
     }
 
     body {
@@ -32,6 +33,13 @@
       padding: 20px;
       -webkit-font-smoothing: antialiased;
       user-select: none;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(206,212,218,0.45) 0px,
+        rgba(206,212,218,0.45) 1px,
+        transparent 1px,
+        transparent 24px
+      );
     }
 
     .container {
@@ -39,92 +47,63 @@
       max-width: 380px;
       background: var(--surface);
       border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
       padding: 40px 32px;
       position: relative;
     }
 
-    .header {
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       display: flex;
       align-items: center;
-      gap: 12px;
-      margin-bottom: 32px;
+      gap: 5px;
     }
+    .wordmark .tri { color: var(--accent); font-size: 0.7em; }
 
-    .logo { width: 32px; height: 32px; border-radius: 4px; }
+    .header-text { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; }
 
-    .header-text {
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
+    .instruction { font-size: 18px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.01em; }
+    .instruction-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
 
-    .instruction {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
-      letter-spacing: -0.01em;
-    }
-
-    .instruction-sub {
-      font-size: 13px;
-      color: var(--text-muted);
-      margin-bottom: 32px;
-      line-height: 1.4;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 3px;
-      background: var(--border);
-      margin-bottom: 32px;
-      overflow: hidden;
-    }
-
-    .progress-fill {
-      height: 100%;
-      background: var(--accent);
-      width: 100%;
-      transition: width 0.1s linear;
-    }
+    .progress-bar { width: 100%; height: 2px; background: var(--surface-alt); border: 1px solid var(--border); margin-bottom: 28px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); width: 100%; transition: width 0.1s linear; }
 
     .chain {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .chain-step {
       width: 44px;
       height: 44px;
-      border: 2px solid var(--border);
+      border: 1px solid var(--border);
       background: var(--surface-alt);
       display: flex;
       align-items: center;
       justify-content: center;
+      font-family: var(--mono);
       font-size: 13px;
-      font-weight: 700;
+      font-weight: 500;
       color: var(--text-muted);
-      transition: all 0.2s ease;
+      transition: all 0.15s ease;
     }
 
-    .chain-step.active {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .chain-step.done {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: var(--bg);
-    }
+    .chain-step.active { border-color: var(--accent); color: var(--accent); }
+    .chain-step.done { border-color: var(--accent); background: var(--accent); color: var(--bg); }
 
     .chain-arrow {
       width: 16px;
-      height: 2px;
+      height: 1px;
       background: var(--border);
       position: relative;
     }
@@ -139,75 +118,38 @@
       border-bottom: 4px solid transparent;
     }
 
-    .chain-arrow.done {
-      background: var(--accent);
-    }
-
-    .chain-arrow.done::after {
-      border-left-color: var(--accent);
-    }
+    .chain-arrow.done { background: var(--accent); }
+    .chain-arrow.done::after { border-left-color: var(--accent); }
 
     .action-zone {
       width: 100%;
       height: 140px;
       background: var(--surface-alt);
       border: 1px solid var(--border);
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 14px;
-      font-weight: 600;
+      font-weight: 400;
       color: var(--text-muted);
       cursor: pointer;
       touch-action: none;
       user-select: none;
-      transition: all 0.15s ease;
+      transition: border-color 0.12s ease;
     }
 
-    .action-zone.active {
-      border-color: var(--accent);
-      color: var(--text);
-    }
+    .action-zone.active { border-color: var(--accent); color: var(--text); }
 
-    .status {
-      display: flex;
-      justify-content: center;
-      gap: 24px;
-      margin-bottom: 24px;
-    }
-
-    .status-item { text-align: center; }
-
-    .status-value {
-      font-size: 20px;
-      font-weight: 700;
-      font-variant-numeric: tabular-nums;
-    }
-
+    .status { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
+    .status-item { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .status-value { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
     .status-value.done { color: var(--accent); }
+    .status-label { font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
 
-    .status-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-top: 4px;
-    }
+    .hint { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-align: center; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.1em; }
 
-    .hint {
-      font-size: 11px;
-      color: var(--text-muted);
-      text-align: center;
-      margin-bottom: 24px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
-
-    .action-area {
-      border-top: 1px solid var(--border);
-      padding-top: 24px;
-    }
+    .action-area { border-top: 1px solid var(--border); padding-top: 24px; }
 
     .action-btn {
       width: 100%;
@@ -215,35 +157,27 @@
       background: var(--text);
       color: var(--bg);
       border: none;
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: all 0.15s ease;
-      letter-spacing: 0.02em;
+      transition: background 150ms ease;
     }
+    .action-btn:hover { background: #000; }
+    .action-btn:disabled { background: var(--surface-alt); color: var(--text-muted); border: 1px solid var(--border); cursor: not-allowed; }
 
-    .action-btn:hover { background: #fff; }
-    .action-btn:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; }
+    .meta { display: flex; justify-content: space-between; margin-top: 14px; font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
 
-    .meta {
-      display: flex;
-      justify-content: space-between;
-      margin-top: 16px;
-      font-size: 10px;
-      color: #404040;
-    }
-
-    @media (max-width: 400px) {
-      .container { padding: 32px 24px; }
-    }
+    @media (max-width: 400px) { .container { padding: 32px 24px; } }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
-      <span class="header-text">Microchain Challenge</span>
+      <span class="wordmark"><span class="tri">▲</span> Astra</span>
+      <span class="header-text">Microchain</span>
     </div>
 
     <div class="instruction">Complete the chain</div>

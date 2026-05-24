@@ -3,27 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pulse Challenge - Astra</title>
+  <title>Pulse Challenge — Astra</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&family=Geist+Mono:wght@300..700&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg: #0a0a0a;
-      --surface: #141414;
-      --surface-alt: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #e5e5e5;
-      --text-muted: #737373;
-      --accent: #22c55e;
-      --warning: #ef4444;
-      --font: 'Space Grotesk', system-ui, sans-serif;
+      --bg:          #f8f9fa;
+      --surface:     #ffffff;
+      --surface-alt: #f1f3f5;
+      --border:      #ced4da;
+      --text:        #111418;
+      --text-2:      #495057;
+      --text-muted:  #6c757d;
+      --accent:      #ad1a04;
+      --font:        'IBM Plex Sans', system-ui, sans-serif;
+      --mono:        'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
     }
 
     body {
@@ -37,6 +34,13 @@
       padding: 20px;
       -webkit-font-smoothing: antialiased;
       user-select: none;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(206,212,218,0.45) 0px,
+        rgba(206,212,218,0.45) 1px,
+        transparent 1px,
+        transparent 24px
+      );
     }
 
     .container {
@@ -44,6 +48,7 @@
       max-width: 380px;
       background: var(--surface);
       border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
       padding: 40px 32px;
       position: relative;
     }
@@ -51,42 +56,50 @@
     .header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
       margin-bottom: 32px;
     }
 
-    .logo {
-      width: 32px;
-      height: 32px;
-      border-radius: 4px;
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
     }
+    .wordmark .tri { color: var(--accent); font-size: 0.7em; }
 
     .header-text {
-      font-size: 11px;
-      font-weight: 500;
+      font-family: var(--mono);
+      font-size: 10px;
       color: var(--text-muted);
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.12em;
     }
 
     .instruction {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 8px;
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 6px;
       letter-spacing: -0.01em;
     }
 
     .instruction-sub {
       font-size: 13px;
       color: var(--text-muted);
-      margin-bottom: 32px;
-      line-height: 1.4;
+      margin-bottom: 28px;
+      line-height: 1.5;
     }
 
     .progress-bar {
       width: 100%;
-      height: 3px;
-      background: var(--border);
+      height: 2px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
       margin-bottom: 40px;
       overflow: hidden;
     }
@@ -113,7 +126,7 @@
       position: absolute;
       width: 100%;
       height: 100%;
-      border: 2px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: 50%;
       opacity: 0;
     }
@@ -123,7 +136,7 @@
     .pulse-ring:nth-child(3) { animation: pulse-ring 1.5s ease-out infinite 0.6s; }
 
     @keyframes pulse-ring {
-      0% { transform: scale(0.8); opacity: 0.6; border-color: var(--accent); }
+      0%   { transform: scale(0.8); opacity: 0.7; border-color: var(--accent); }
       100% { transform: scale(1.2); opacity: 0; border-color: var(--border); }
     }
 
@@ -131,7 +144,7 @@
       width: 80px;
       height: 80px;
       background: var(--surface-alt);
-      border: 2px solid var(--border);
+      border: 1px solid var(--border);
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -149,13 +162,9 @@
       transition: transform 0.1s ease;
     }
 
-    .pulse-core.tapped::after {
-      transform: scale(1.3);
-    }
+    .pulse-core.tapped::after { transform: scale(1.3); }
 
-    .challenge-area:hover .pulse-core {
-      border-color: var(--text-muted);
-    }
+    .challenge-area:hover .pulse-core { border-color: var(--text-muted); }
 
     .counter {
       position: absolute;
@@ -163,14 +172,14 @@
       right: -8px;
       width: 32px;
       height: 32px;
-      background: var(--bg);
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 4px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
       font-variant-numeric: tabular-nums;
     }
 
@@ -181,12 +190,13 @@
     }
 
     .hint {
-      font-size: 11px;
+      font-family: var(--mono);
+      font-size: 10px;
       color: var(--text-muted);
       text-align: center;
       margin-bottom: 24px;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
     }
 
     .action-area {
@@ -200,44 +210,41 @@
       background: var(--text);
       color: var(--bg);
       border: none;
-      font-family: var(--font);
-      font-size: 13px;
-      font-weight: 600;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: all 0.15s ease;
-      letter-spacing: 0.02em;
+      transition: background 150ms ease;
     }
-
-    .action-btn:hover {
-      background: #fff;
-    }
-
+    .action-btn:hover { background: #000; }
     .action-btn:disabled {
-      background: var(--border);
+      background: var(--surface-alt);
       color: var(--text-muted);
+      border: 1px solid var(--border);
       cursor: not-allowed;
     }
 
     .meta {
       display: flex;
       justify-content: space-between;
-      margin-top: 16px;
-      font-size: 10px;
-      color: #404040;
+      margin-top: 14px;
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
     }
 
-    @media (max-width: 400px) {
-      .container {
-        padding: 32px 24px;
-      }
-    }
+    @media (max-width: 400px) { .container { padding: 32px 24px; } }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header">
-      <img src="https://pbs.twimg.com/profile_images/1986017638590681089/6US4feXl_400x400.jpg" alt="Astra" class="logo">
-      <span class="header-text">Pulse Challenge</span>
+      <span class="wordmark"><span class="tri">▲</span> Astra</span>
+      <span class="header-text">Pulse</span>
     </div>
 
     <div class="instruction">Tap with the rhythm</div>
@@ -281,45 +288,30 @@
 
     timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    const ringTimings = [
-      750,
-      1500,
-      2250
-    ];
-
+    const ringTimings = [750, 1500, 2250];
     let tappedAt = [];
 
     function updateProgress() {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, duration - elapsed);
       progressFill.style.width = (remaining / duration * 100) + '%';
-
-      if (remaining > 0) {
-        requestAnimationFrame(updateProgress);
-      } else {
-        handleTimeout();
-      }
+      if (remaining > 0) requestAnimationFrame(updateProgress);
+      else handleTimeout();
     }
 
     function handleTap() {
       const elapsed = Date.now() - startTime;
       const expectedIndex = tappedAt.length;
-
       if (expectedIndex >= ringTimings.length) return;
-
       const expected = ringTimings[expectedIndex];
       const tolerance = 300;
-
       if (Math.abs(elapsed - expected) <= tolerance) {
         tappedAt.push(elapsed);
         currentTaps++;
         counter.textContent = currentTaps + '/' + requiredTaps;
-
         pulseCore.classList.add('tapped');
         setTimeout(() => pulseCore.classList.remove('tapped'), 100);
-
         if (navigator.vibrate) navigator.vibrate(30);
-
         if (currentTaps >= requiredTaps) {
           counter.classList.add('success');
           handleSuccess();
