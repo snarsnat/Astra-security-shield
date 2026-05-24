@@ -50,10 +50,13 @@ class ASTRAShield {
     this.isVerifying = false;
     this.activeChallenge = null;
 
-    // Bot lockout — after MAX_CHALLENGE_FAILURES consecutive failures, session is locked
-    this.failedChallenges = 0;
+    // Bot lockout — after MAX_CHALLENGE_FAILURES *consecutive* failures, session locks
+    // Resets on: successful challenge pass, or after LOCKOUT_COOLDOWN_MS
+    this.consecutiveFailures = 0;
     this.botLockout = false;
+    this.lockoutUntil = 0;
     this.MAX_CHALLENGE_FAILURES = this.options.maxChallengeFailures ?? 3;
+    this.LOCKOUT_COOLDOWN_MS = this.options.lockoutCooldownMs ?? 10 * 60 * 1000;
 
     // Bind methods
     this.protect = this.protect.bind(this);
@@ -220,11 +223,17 @@ class ASTRAShield {
       await this.init();
     }
 
-    // Hard lockout — session burned after too many failed challenges
+    // Lockout check — lifts automatically after cooldown
     if (this.botLockout) {
-      this.sendTelemetry('blocked', { reason: 'bot_lockout', tier: String(this.currentTier) });
-      this.emit('blocked', { reason: 'bot_lockout', status: 403 });
-      return { success: false, blocked: true, reason: 'bot_lockout', status: 403 };
+      if (Date.now() < this.lockoutUntil) {
+        const retryIn = Math.ceil((this.lockoutUntil - Date.now()) / 1000);
+        this.sendTelemetry('blocked', { reason: 'bot_lockout', tier: String(this.currentTier) });
+        this.emit('blocked', { reason: 'bot_lockout', status: 403, retryIn });
+        return { success: false, blocked: true, reason: 'bot_lockout', status: 403, retryIn };
+      }
+      // Cooldown expired — give them another chance
+      this.botLockout = false;
+      this.consecutiveFailures = 0;
     }
 
     this.log(`Protecting action: ${action}`);
@@ -313,6 +322,9 @@ class ASTRAShield {
         this.happiness.trackChallengeCompletion(result.success, completionTime, result.type);
 
         if (result.success) {
+          // Human passed — reset consecutive failure counter
+          this.consecutiveFailures = 0;
+
           this.emit('success', {
             tier: result.tier,
             type: result.type,
@@ -329,27 +341,29 @@ class ASTRAShield {
             duration: completionTime
           });
         } else {
-          this.failedChallenges += 1;
+          this.consecutiveFailures += 1;
 
-          if (this.failedChallenges >= this.MAX_CHALLENGE_FAILURES) {
+          if (this.consecutiveFailures >= this.MAX_CHALLENGE_FAILURES) {
             this.botLockout = true;
-            this.log(`Bot lockout triggered after ${this.failedChallenges} failed challenges`);
+            this.lockoutUntil = Date.now() + this.LOCKOUT_COOLDOWN_MS;
+            this.consecutiveFailures = 0;
+            this.log(`Bot lockout — ${this.MAX_CHALLENGE_FAILURES} consecutive failures. Locked for ${this.LOCKOUT_COOLDOWN_MS / 60000}min`);
             this.sendTelemetry('blocked', { reason: 'bot_lockout', tier: String(result.tier || '') });
-            this.emit('blocked', { reason: 'bot_lockout', status: 403 });
-            resolve({ success: false, blocked: true, reason: 'bot_lockout', status: 403 });
+            this.emit('blocked', { reason: 'bot_lockout', status: 403, retryIn: this.LOCKOUT_COOLDOWN_MS / 1000 });
+            resolve({ success: false, blocked: true, reason: 'bot_lockout', status: 403, retryIn: this.LOCKOUT_COOLDOWN_MS / 1000 });
           } else {
+            const remainingAttempts = this.MAX_CHALLENGE_FAILURES - this.consecutiveFailures;
             this.emit('blocked', {
               reason: result.reason,
               attempts: result.attempts,
-              failedChallenges: this.failedChallenges,
-              remainingAttempts: this.MAX_CHALLENGE_FAILURES - this.failedChallenges,
+              remainingAttempts,
             });
             this.sendTelemetry('blocked', { reason: result.reason, tier: String(result.tier || '') });
             resolve({
               success: false,
               reason: result.reason,
               attempts: result.attempts,
-              remainingAttempts: this.MAX_CHALLENGE_FAILURES - this.failedChallenges,
+              remainingAttempts,
             });
           }
         }
