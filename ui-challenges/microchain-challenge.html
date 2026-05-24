@@ -225,11 +225,21 @@
 
     timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    const actions = [
+    const actionPool = [
       { type: 'flick', label: 'Flick up', hint: 'Swipe up in the zone', short: 'FLICK' },
-      { type: 'tap', count: 2, label: 'Tap twice', hint: 'Double tap the zone', short: 'TAP x2' },
-      { type: 'hold', duration: 1000, label: 'Hold 1s', hint: 'Press and hold for 1 second', short: 'HOLD' }
+      { type: 'tap', count: 2, label: 'Tap twice', hint: 'Double-tap the zone', short: 'TAP×2' },
+      { type: 'tap', count: 3, label: 'Tap 3×', hint: 'Tap the zone 3 times', short: 'TAP×3' },
+      { type: 'hold', duration: 800, label: 'Hold 0.8s', hint: 'Press and hold for 0.8s', short: 'HOLD' },
+      { type: 'hold', duration: 1200, label: 'Hold 1.2s', hint: 'Press and hold for 1.2s', short: 'HOLD+' },
     ];
+    // Pick 3 distinct action types, shuffle
+    const shuffled = actionPool.slice().sort(() => Math.random() - 0.5);
+    const seen = new Set();
+    const actions = [];
+    for (const a of shuffled) {
+      if (!seen.has(a.type) && actions.length < 3) { seen.add(a.type); actions.push(a); }
+    }
+    while (actions.length < 3) actions.push(actionPool[actions.length]);
 
     for (let i = 0; i < actions.length; i++) {
       const step = document.createElement('div');
@@ -374,9 +384,11 @@
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'microchain', success: false }, window.location.origin);
+      }
     }
 
     setPrompt();

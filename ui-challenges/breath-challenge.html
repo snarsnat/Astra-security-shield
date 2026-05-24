@@ -375,14 +375,16 @@
       holdTime.classList.add('complete');
       if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
       if (window.parent !== window) {
-        window.parent.postMessage({ type: 'astra-challenge-complete', success: true, challenge: 'breath' }, '*');
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'breath', success: true }, window.location.origin);
       }
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'breath', success: false }, window.location.origin);
+      }
     }
 
     challengeArea.addEventListener('mousedown', handleHoldStart);

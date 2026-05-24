@@ -176,10 +176,39 @@
 
     const pathPoints = [];
     const steps = 24;
+    const pathType = Math.floor(Math.random() * 4);
+    const freq = 1 + Math.random();           // 1–2 cycles
+    const amp  = 40 + Math.floor(Math.random() * 41); // 40–80px
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const x = 24 + t * (W - 48);
-      const y = H / 2 + Math.sin(t * Math.PI * 2) * 60;
+      let y;
+      if (pathType === 0) {
+        // sine wave with random freq/amp
+        y = H / 2 + Math.sin(t * Math.PI * 2 * freq) * amp;
+      } else if (pathType === 1) {
+        // zigzag
+        const peaks = 2 + Math.floor(Math.random() * 3); // 2–4
+        y = H / 2 + (((t * peaks * 2) % 2 < 1) ? (t * peaks * 2 % 1) : (1 - t * peaks * 2 % 1)) * amp * 2 - amp;
+      } else if (pathType === 2) {
+        // S-curve (two half-sines in opposite phase)
+        y = H / 2 + Math.sin(t * Math.PI * 2) * amp * (1 - t * 0.4);
+      } else {
+        // random waypoints with linear interpolation
+        if (i === 0) { pathPoints.push({ x: 24, y: H / 2 }); continue; }
+        if (i === steps) { pathPoints.push({ x: W - 24, y: H / 2 }); continue; }
+        if (pathPoints.length === 1) {
+          // seed waypoints
+          const numWp = 3 + Math.floor(Math.random() * 3);
+          for (let w = 0; w <= numWp + 1; w++) {
+            pathPoints.push({
+              x: 24 + (w / (numWp + 1)) * (W - 48),
+              y: 40 + Math.floor(Math.random() * (H - 80))
+            });
+          }
+        }
+        continue;
+      }
       pathPoints.push({ x, y });
     }
 
@@ -293,21 +322,23 @@
       actionBtn.textContent = 'Verified';
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
+      const accuracy = totalSamples > 0 ? 1 - offPathCount / totalSamples : 1;
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'astra-challenge-result',
           challenge: 'path',
           success: true,
-          samples: totalSamples,
-          offPath: offPathCount
+          behaviorData: { pathAccuracy: accuracy, sampleCount: totalSamples }
         }, window.location.origin);
       }
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'path', success: false }, window.location.origin);
+      }
     }
 
     tick();

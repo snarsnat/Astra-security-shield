@@ -221,7 +221,16 @@
       { sentence: 'The login page was shown at 10:30 in the morning.', question: 'When was the page shown?', options: ['Morning', 'Afternoon', 'Evening'], answer: 'Morning' },
       { sentence: 'She bought four apples and two oranges at the store.', question: 'How many oranges did she buy?', options: ['One', 'Two', 'Four'], answer: 'Two' },
       { sentence: 'The package arrived on Tuesday afternoon in a green box.', question: 'What color was the box?', options: ['Blue', 'Green', 'Brown'], answer: 'Green' },
-      { sentence: 'The server restarted successfully after the update completed.', question: 'What happened to the server?', options: ['Crashed', 'Restarted', 'Paused'], answer: 'Restarted' }
+      { sentence: 'The server restarted successfully after the update completed.', question: 'What happened to the server?', options: ['Crashed', 'Restarted', 'Paused'], answer: 'Restarted' },
+      { sentence: 'The dog ran across the yard and stopped at the red fence.', question: 'What color was the fence?', options: ['White', 'Red', 'Black'], answer: 'Red' },
+      { sentence: 'There were five windows open on the browser.', question: 'How many windows were open?', options: ['Three', 'Four', 'Five'], answer: 'Five' },
+      { sentence: 'The meeting was scheduled for 3 PM on Friday.', question: 'What day was the meeting?', options: ['Thursday', 'Friday', 'Saturday'], answer: 'Friday' },
+      { sentence: 'The file was saved in the Documents folder on the desktop.', question: 'Where was the file saved?', options: ['Downloads', 'Documents', 'Desktop'], answer: 'Documents' },
+      { sentence: 'She sent an email with two attachments to the team.', question: 'How many attachments were sent?', options: ['One', 'Two', 'Three'], answer: 'Two' },
+      { sentence: 'The error appeared on line 42 of the config file.', question: 'On which line was the error?', options: ['24', '42', '420'], answer: '42' },
+      { sentence: 'The alarm went off at 7 AM, waking everyone up.', question: 'What time did the alarm go off?', options: ['6 AM', '7 AM', '8 AM'], answer: '7 AM' },
+      { sentence: 'The car turned left at the second traffic light.', question: 'Which direction did the car turn?', options: ['Right', 'Left', 'Straight'], answer: 'Left' },
+      { sentence: 'The report was 12 pages long and had three charts.', question: 'How many charts were in the report?', options: ['Two', 'Three', 'Four'], answer: 'Three' }
     ];
 
     function escapeText(s) {
@@ -288,9 +297,11 @@
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'contextual', success: false }, window.location.origin);
+      }
     }
 
     tick();

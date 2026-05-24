@@ -259,7 +259,7 @@
       <div class="pulse-ring"></div>
       <div class="pulse-ring"></div>
       <div class="pulse-core" id="pulseCore"></div>
-      <div class="counter" id="counter">0/3</div>
+      <div class="counter" id="counter">0/?</div>
     </div>
 
     <div class="hint">Tap the circle</div>
@@ -281,14 +281,21 @@
     const actionBtn = document.getElementById('actionBtn');
     const timestamp = document.getElementById('timestamp');
 
-    const requiredTaps = 3;
+    const requiredTaps = 3 + Math.floor(Math.random() * 3); // 3–5
     let currentTaps = 0;
     let startTime = Date.now();
-    const duration = 5000;
+    const duration = 7000;
 
     timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+    counter.textContent = '0/' + requiredTaps;
 
-    const ringTimings = [750, 1500, 2250];
+    // Random intervals 500–1000ms between taps
+    const ringTimings = [];
+    let acc = 600 + Math.floor(Math.random() * 400);
+    for (let i = 0; i < requiredTaps; i++) {
+      ringTimings.push(acc);
+      acc += 500 + Math.floor(Math.random() * 500);
+    }
     let tappedAt = [];
 
     function updateProgress() {
@@ -323,23 +330,28 @@
       actionBtn.textContent = 'Verified';
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
+      const intervals = tappedAt.map((t, i) => i > 0 ? t - tappedAt[i-1] : t);
+      const mean = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+      const variance = intervals.reduce((a,b)=>a+(b-mean)**2,0)/intervals.length;
+      const cv = mean > 0 ? Math.sqrt(variance)/mean : 0;
       setTimeout(() => {
         if (window.parent !== window) {
           window.parent.postMessage({
             type: 'astra-challenge-result',
             challenge: 'pulse',
             success: true,
-            tappedAt: tappedAt
+            tappedAt,
+            behaviorData: { timingCV: cv, sampleCount: tappedAt.length }
           }, window.location.origin);
         }
       }, 300);
     }
 
     function handleTimeout() {
-      if (currentTaps < requiredTaps) {
-        actionBtn.textContent = 'Try again';
-        actionBtn.disabled = false;
-        actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'pulse', success: false }, window.location.origin);
       }
     }
 

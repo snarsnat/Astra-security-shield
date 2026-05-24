@@ -310,15 +310,15 @@
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
       if (window.parent !== window) {
-        window.parent.postMessage({ type: 'astra-challenge-complete', success: true, challenge: 'tilt' }, '*');
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'tilt', success: true }, window.location.origin);
       }
     }
 
     function handleTimeout() {
-      if (balanced < required) {
-        actionBtn.textContent = 'Try again';
-        actionBtn.disabled = false;
-        actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'tilt', success: false }, window.location.origin);
       }
     }
 

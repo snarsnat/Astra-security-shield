@@ -111,16 +111,19 @@
     .shape-cell.wrong { opacity: 0.2; pointer-events: none; }
 
     .shape { width: 44px; height: 44px; }
+    .shape.sz-sm { width: 28px; height: 28px; }
+    .shape.sz-lg { width: 56px; height: 56px; }
     .shape-circle { border-radius: 50%; }
     .shape-square { border-radius: 0; }
     .shape-triangle {
-      width: 0;
-      height: 0;
-      border-left: 24px solid transparent;
-      border-right: 24px solid transparent;
-      border-bottom: 44px solid currentColor;
+      width: 0 !important;
+      height: 0 !important;
       background: none !important;
+      border-style: solid;
     }
+    .shape-triangle.sz-sm { border-left-width: 14px; border-right-width: 14px; border-bottom-width: 28px; }
+    .shape-triangle.sz-md { border-left-width: 22px; border-right-width: 22px; border-bottom-width: 44px; }
+    .shape-triangle.sz-lg { border-left-width: 28px; border-right-width: 28px; border-bottom-width: 56px; }
 
     .status { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
     .status-item { text-align: center; display: flex; flex-direction: column; gap: 4px; }
@@ -215,19 +218,25 @@
       { key: 'green', hex: '#22c55e' },
       { key: 'yellow', hex: '#f59e0b' }
     ];
+    const sizes = [
+      { key: 'small', cls: 'sz-sm' },
+      { key: 'medium', cls: 'sz-md' },
+      { key: 'large', cls: 'sz-lg' }
+    ];
 
     function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 
     const cells = [];
-    const target = { shape: pick(shapes), color: pick(palette) };
-    prompt.textContent = `Tap the ${target.color.key} ${target.shape}`;
+    const target = { shape: pick(shapes), color: pick(palette), size: pick(sizes) };
+    prompt.textContent = `Tap the ${target.size.key} ${target.color.key} ${target.shape}`;
 
-    cells.push({ shape: target.shape, color: target.color });
+    cells.push({ shape: target.shape, color: target.color, size: target.size });
     while (cells.length < 9) {
       const s = pick(shapes);
       const c = pick(palette);
-      if (s === target.shape && c.key === target.color.key && cells.some(x => x.shape === s && x.color.key === c.key)) continue;
-      cells.push({ shape: s, color: c });
+      const z = pick(sizes);
+      if (s === target.shape && c.key === target.color.key && z.key === target.size.key && cells.some(x => x.shape === s && x.color.key === c.key && x.size.key === z.key)) continue;
+      cells.push({ shape: s, color: c, size: z });
     }
     for (let i = cells.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -241,9 +250,11 @@
       const el = document.createElement('div');
       el.className = 'shape-cell';
       const inner = document.createElement('div');
-      inner.className = 'shape shape-' + cell.shape;
+      inner.className = 'shape shape-' + cell.shape + ' ' + cell.size.cls;
       if (cell.shape === 'triangle') {
-        inner.style.color = cell.color.hex;
+        inner.style.borderLeftColor = 'transparent';
+        inner.style.borderRightColor = 'transparent';
+        inner.style.borderBottomColor = cell.color.hex;
       } else {
         inner.style.background = cell.color.hex;
       }
@@ -253,7 +264,7 @@
         if (!e.isTrusted || finished) return;
         attempts++;
         attemptsVal.textContent = attempts;
-        if (cell.shape === target.shape && cell.color.key === target.color.key) {
+        if (cell.shape === target.shape && cell.color.key === target.color.key && cell.size.key === target.size.key) {
           finished = true;
           handleSuccess();
         } else {
@@ -290,9 +301,11 @@
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'semantic', success: false }, window.location.origin);
+      }
     }
 
     tick();

@@ -287,9 +287,11 @@
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Time out — Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'flick', success: false }, window.location.origin);
+      }
     }
 
     challengeArea.addEventListener('mousedown', handleStart);

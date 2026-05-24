@@ -192,8 +192,13 @@
 
     timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
 
-    const duration = 6000;
-    const pattern = [600, 1200, 1800];
+    const duration = 7000;
+    // Randomize which pad order the user must tap
+    const padOrder = [0, 1, 2].sort(() => Math.random() - 0.5);
+    // Randomize timing gaps: 400-900ms between beats
+    const pattern = [];
+    let t = 500 + Math.floor(Math.random() * 300);
+    for (let i = 0; i < 3; i++) { pattern.push(t); t += 400 + Math.floor(Math.random() * 500); }
     const tolerance = 400;
     const startTime = Date.now();
     let currentStep = 0;
@@ -206,22 +211,23 @@
       wave.appendChild(m);
     });
 
+    // Show the randomized pad order as hint
+    document.getElementById('patternVal').textContent = padOrder.map(x => x+1).join('-');
+
     function highlightCue() {
       const elapsed = Date.now() - startTime;
-      pads.forEach((pad, i) => {
-        pad.classList.remove('cue');
-        if (i >= currentStep && Math.abs(elapsed - pattern[i]) < 300) {
-          pad.classList.add('cue');
-        }
-      });
+      pads.forEach(pad => pad.classList.remove('cue'));
+      if (currentStep < 3 && Math.abs(elapsed - pattern[currentStep]) < 300) {
+        pads[padOrder[currentStep]].classList.add('cue');
+      }
     }
 
     function handleTap(i) {
-      if (currentStep !== i) return;
+      if (padOrder[currentStep] !== i) return;
       const elapsed = Date.now() - startTime;
       const expected = pattern[currentStep];
       if (Math.abs(elapsed - expected) <= tolerance) {
-        pads[currentStep].classList.add('active');
+        pads[padOrder[currentStep]].classList.add('active');
         hits.push(elapsed);
         currentStep++;
         progressVal.textContent = currentStep + '/3';
@@ -259,21 +265,26 @@
       actionBtn.textContent = 'Verified';
       actionBtn.disabled = false;
       progressFill.style.background = 'var(--accent)';
+      const intervals = hits.map((h, i) => i > 0 ? h - hits[i-1] : h);
+      const mean = intervals.reduce((a,b)=>a+b,0)/intervals.length;
+      const variance = intervals.reduce((a,b)=>a+(b-mean)**2,0)/intervals.length;
+      const cv = mean > 0 ? Math.sqrt(variance)/mean : 0;
       if (window.parent !== window) {
         window.parent.postMessage({
           type: 'astra-challenge-result',
           challenge: 'rhythm',
           success: true,
-          hits: hits
+          hits,
+          behaviorData: { timingCV: cv, sampleCount: hits.length }
         }, window.location.origin);
       }
     }
 
     function handleTimeout() {
-      if (currentStep < 3) {
-        actionBtn.textContent = 'Try again';
-        actionBtn.disabled = false;
-        actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'rhythm', success: false }, window.location.origin);
       }
     }
 

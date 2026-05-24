@@ -322,8 +322,8 @@ class ASTRAShield {
         this.happiness.trackChallengeCompletion(result.success, completionTime, result.type);
 
         if (result.success) {
-          // Human passed — reset consecutive failure counter
           this.consecutiveFailures = 0;
+          this._adjustOOSFromChallenge(result);
 
           this.emit('success', {
             tier: result.tier,
@@ -369,6 +369,35 @@ class ASTRAShield {
         }
       });
     });
+  }
+
+  _adjustOOSFromChallenge(result) {
+    if (!this.detector || !this.detector.scores) return;
+    const data = result.behaviorData || {};
+    let delta = 0;
+
+    // Timing variance (pulse, rhythm): low CV = robotic
+    if (data.timingCV !== undefined) {
+      delta += data.timingCV < 0.05 ? 0.15 : data.timingCV > 0.2 ? -0.10 : 0;
+    }
+
+    // Path accuracy (path challenge): near-perfect = bot
+    if (data.pathAccuracy !== undefined) {
+      delta += data.pathAccuracy > 0.99 ? 0.20 : data.pathAccuracy > 0.95 ? 0.08 : -0.05;
+    }
+
+    // Sample count: too low = scripted fast-click
+    if (data.sampleCount !== undefined) {
+      delta += data.sampleCount < 5 ? 0.12 : 0;
+    }
+
+    // Completion time: sub-100ms = not human
+    if (result.duration !== undefined) {
+      delta += result.duration < 100 ? 0.25 : result.duration < 300 ? 0.10 : -0.05;
+    }
+
+    const s = this.detector.scores;
+    s.sessionAnomaly = Math.max(0, Math.min(1, (s.sessionAnomaly || 0) + delta));
   }
 
   /**

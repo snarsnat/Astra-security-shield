@@ -225,11 +225,13 @@
     let locked = 0;
     let finished = false;
 
-    const positions = [
-      { x: 30, y: 30 }, { x: 170, y: 30 },
-      { x: 30, y: 170 }, { x: 170, y: 170 },
-      { x: 100, y: 100 }
-    ];
+    // Random positions within 20–180 range, at least 60px apart
+    const positions = [];
+    const margin = 20, span = 160, minDist = 60;
+    while (positions.length < 5) {
+      const p = { x: margin + Math.floor(Math.random() * span), y: margin + Math.floor(Math.random() * span) };
+      if (positions.every(q => Math.hypot(p.x-q.x, p.y-q.y) >= minDist)) positions.push(p);
+    }
     let posIndex = 0;
     function moveTarget() {
       posIndex = (posIndex + 1) % positions.length;
@@ -298,9 +300,11 @@
     }
 
     function handleTimeout() {
-      actionBtn.textContent = 'Try again';
-      actionBtn.disabled = false;
-      actionBtn.onclick = () => location.reload();
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'gaze', success: false }, window.location.origin);
+      }
     }
 
     tick();
