@@ -1,11 +1,12 @@
-# 🛡️ ASTRA Shield
+# ASTRA Shield
 ![Astra Banner](banner1.png)
+[![npm](https://img.shields.io/npm/v/astra-shield?color=crimson)](https://www.npmjs.com/package/astra-shield)
 [![X](https://img.shields.io/badge/Follow-@happinezreal-000000?style=flat&logo=x)](https://x.com/happinezreal)
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/nebsol) 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-Donate-orange?style=flat&logo=buy-me-a-coffee)](https://buymeacoffee.com/nebsol)
 
 **Invisible bot detection & human verification** — the best security is the security you never notice.
 
-A complete behavioral analysis system with multi-layer fingerprinting, ML-powered risk scoring, 11 challenge types, and a real-time analytics dashboard.
+Multi-layer behavioral analysis, headless browser detection, IP reputation, and signal-silence detection — with a real-time cloud analytics dashboard.
 
 ## Installation
 
@@ -22,198 +23,150 @@ npm install -g astra-shield
 ## Quick Start
 
 ```bash
-# Start the analytics dashboard
-astra dashboard
-
-# Add ASTRA to your project
+# Add ASTRA to your project (copies SDK files)
 astra add
 
-# View all protected apps
-astra list
+# Connect to the cloud dashboard
+astra connect
+
+# Check integration status
+astra status
 ```
 
-## Usage
+Then sign in at **[astra-shield-site.vercel.app](https://astra-shield-site.vercel.app)** to view your analytics.
 
-### CLI Commands
+## CLI Commands
 
 | Command | Description |
 |---|---|
-| `astra add [path]` | Add ASTRA Shield to a project |
-| `astra list` | List all protected apps |
-| `astra remove <name>` | Remove a project |
-| `astra configure` | Configure settings |
+| `astra add [path]` | Copy ASTRA Shield SDK into a project |
+| `astra connect` | Connect project to cloud dashboard |
+| `astra list` | List all connected apps |
+| `astra remove <name>` | Disconnect a project |
 | `astra status` | Check integration status |
-| `astra init` | Initialize in a new project |
-| `astra dashboard` | Start analytics dashboard |
-| `astra dashboard start` | Start as background service |
-| `astra dashboard stop` | Stop services |
-| `astra dashboard restart` | Restart services |
-| `astra dashboard status` | Check service status |
-| `astra dashboard logs` | View recent logs |
 | `astra doctor` | Diagnose issues |
 | `astra help` | Show help |
 
-### JavaScript API
+## JavaScript API
 
 ```javascript
 import { ASTRAShield } from 'astra-shield';
 
-const astra = new ASTRAShield({
-  endpoint: '/api/astra/verify',
-  apiKey: 'your-api-key',
-  tiers: {
-    ghost: { max: 1.5 },
-    whisper: { max: 2.0 },
-    nudge: { max: 2.5 },
-    pause: { max: 3.0 },
-    gate: { max: Infinity },
-  },
+const shield = new ASTRAShield({
+  appToken: 'your-app-token',  // from `astra connect`
+  debug: false,
 });
 
-astra.init();
-
-// Protect a form submission
-astra.protect('#my-form', {
-  onSuccess: (result) => console.log('Verified:', result),
-  onChallenge: (challenge) => console.log('Challenge:', challenge),
-  onError: (err) => console.error('Error:', err),
-});
-
-// Manual verification
-const result = await astra.verify({ action: 'login' });
-```
-
-### React Integration
-
-```javascript
-import { ASTRAShieldProvider, useASTRAShield } from 'astra-shield/react';
-
-function App() {
-  return (
-    <ASTRAShieldProvider apiKey="your-api-key">
-      <MyComponent />
-    </ASTRAShieldProvider>
-  );
+// Protect any action
+const result = await shield.protect('purchase');
+if (result.success) {
+  // human verified — proceed
 }
 
-function MyComponent() {
-  const { verify, session } = useASTRAShield();
-
-  const handleSubmit = async () => {
-    const result = await verify({ action: 'submit' });
-    if (result.success) { /* proceed */ }
-  };
-}
+// Listen to events
+shield.on('ready', () => console.log('Shield active'));
+shield.on('tierChange', ({ tier }) => console.log('Tier:', tier));
+shield.on('blocked', ({ reason }) => console.log('Blocked:', reason));
+shield.on('challenge', ({ type }) => console.log('Challenge:', type));
 ```
 
-### Vue 3 Integration
+## Detection Layers
 
-```javascript
-import { createApp } from 'vue';
-import ASTRAPlugin from 'astra-shield/vue';
+ASTRA runs eight independent detection signals, each contributing to an OOS (Out-of-Suspicion) score:
 
-const app = createApp(App);
-app.use(ASTRAPlugin, { apiKey: 'your-api-key' });
-```
-
-### Angular Integration
-
-```typescript
-import { ASTRAShieldModule } from 'astra-shield/angular';
-
-@NgModule({
-  imports: [
-    ASTRAShieldModule.forRoot({ apiKey: 'your-api-key' }),
-  ],
-})
-export class AppModule {}
-```
-
-## Server
-
-The shield server provides the verification API:
-
-```bash
-# Start the shield server
-node node_modules/astra-shield/server/index.js
-
-# Or programmatically
-import { app, services } from 'astra-shield/shield-server';
-app.listen(3001);
-```
-
-### Server Endpoints
-
-| Endpoint | Auth | Description |
+| Signal | What it detects | Weight |
 |---|---|---|
-| `POST /api/verify` | API Key | Main verification |
-| `POST /api/analyze` | None | Behavioral analysis |
-| `POST /api/challenge` | None | Generate challenge |
-| `POST /api/challenge/verify` | None | Verify challenge |
-| `POST /api/session/create` | None | Create session |
-| `POST /api/session/refresh` | None | Refresh tokens |
-| `GET /api/stats` | None | Service statistics |
-| `GET /api/health` | None | Health check |
-| `POST /api/keys/generate` | Admin | Generate API key |
-| `GET /api/keys/list` | Admin | List API keys |
-| `POST /api/keys/revoke` | Admin | Revoke API key |
-| `GET /api/dashboards/list` | None | List dashboards |
-| `POST /api/dashboards/create` | None | Create dashboard |
-| `GET /api/dashboards/:id/stats` | None | Dashboard stats |
-| `GET /api/dashboards/:id/apps` | None | Dashboard apps |
+| **Headless anomaly** | `navigator.webdriver`, missing `window.chrome`, zero plugins, 20 automation globals, WebGL SwiftShader/llvmpipe renderer | 0.28 |
+| **Signal silence** | Clicks or actions with zero pointer/touch movement — strongest real-browser bot signal | 0.14 |
+| **Mouse anomaly** | Inhuman velocity, zero variance, straight-line paths, low Shannon path entropy | 0.12 |
+| **Click anomaly** | Robotic timing regularity, sub-50ms intervals, coefficient of variation < 0.1 | 0.11 |
+| **Keyboard anomaly** | Uniform keystroke cadence, impossible typing speed | 0.10 |
+| **Session anomaly** | Low trust score, rapid actions on fresh session | 0.10 |
+| **Touch anomaly** | Perfect-velocity swipes, inhuman gesture consistency | 0.08 |
+| **Scroll anomaly** | Constant-velocity scrolling, no human deceleration | 0.07 |
 
-## Dashboard
+Server-side, each event is also checked against **IP reputation** (proxy/datacenter detection) — events from flagged IPs are automatically escalated to `blocked` regardless of client score.
 
-Real-time analytics with 8 pages: Overview, Protection, Flagged Activity, Traffic, OOS Scores, Live Feed, Challenges, Sessions.
+### Signal Silence Detection (v2.3.0)
 
-```bash
-astra dashboard          # Start + open browser
-astra dashboard start    # Background service
-astra dashboard stop     # Stop services
-astra dashboard status   # Check status
-astra dashboard logs     # View logs
-```
+Bots using real browsers often skip mouse/touch simulation entirely. ASTRA now treats the *absence* of behavioral signals as a signal itself:
+
+- Clicks recorded but zero pointer movement → `silenceAnomaly: 0.75`
+- Keyboard input but no pointer activity → `silenceAnomaly: 0.30`
+- Complete behavioral darkness after 5s → `silenceAnomaly: 0.25`
+- Score escalates with time since page load
+
+## 5-Tier Friction Model
+
+OOS score drives progressive friction — humans feel nothing, bots hit walls:
+
+| Tier | OOS Score | Experience |
+|---|---|---|
+| **Ghost** | 0–1.5 | Invisible — zero friction |
+| **Whisper** | 1.5–2.0 | 200ms delay, imperceptible |
+| **Nudge** | 2.0–2.5 | Simple gesture challenge |
+| **Pause** | 2.5–3.0 | Extended verification |
+| **Gate** | 3.0+ | Full challenge required |
+
+## Challenge Types
+
+11 human-native challenges, assigned by tier:
+
+| Challenge | Tier |
+|---|---|
+| Pulse — tap a rhythm | 1–2 |
+| Tilt — balance a ball | 1–2 |
+| Flick — directional swipe | 1–2 |
+| Breath — follow a circle | 1–3 |
+| Rhythm — tap a pattern | 2–3 |
+| Pressure — hold with force | 2–3 |
+| Path — trace a route | 2–4 |
+| Semantic — identify an object | 3–4 |
+| Microchain — chain of micro-actions | 3–4 |
+| Gaze — look at a target | 3–4 |
+| Contextual — contextual question | 4 |
+
+## Cloud Dashboard
+
+Real-time analytics at [astra-shield-site.vercel.app](https://astra-shield-site.vercel.app):
+
+- Total scanned / blocked / challenged / pass rate
+- Daily timeline chart
+- Tier distribution breakdown
+- Signal and challenge breakdown
+- Live event feed (last 20 events with country, device, browser, reason)
+
+Sign in with GitHub or Google — apps persist across sessions and devices.
 
 ## Architecture
 
 ```
-┌─────────────┐     ┌──────────────┐     ┌─────────────────┐
-│   Browser   │────▶│  ASTRA SDK   │────▶│  Shield Server  │
-│   (Client)  │     │  (Behavioral │     │  (Port 3001)    │
-│             │     │   Tracking)  │     │                 │
-└─────────────┘     └──────────────┘     └────────┬────────┘
-                                                  │
-                                           ┌──────▼───────┐
-                                           │   Dashboard   │
-                                           │  (Port 3000)  │
-                                           └──────────────┘
+Browser (SDK)
+  └─ behavioral signals → OOS score → tier → protect()
+       └─ telemetry → POST /api/events/ingest (Vercel)
+            ├─ IP reputation check (ip-api.com)
+            ├─ INSERT events (Supabase)
+            └─ increment daily_stats (atomic RPC)
+
+Dashboard (astra-shield-site.vercel.app)
+  └─ GET /api/apps/stats → Supabase → charts
 ```
 
-## Challenge Types
+## Changelog
 
-| Name | Description | Tier |
-|---|---|---|
-| **Pulse** | Tap along with a rhythm | 1-2 |
-| **Tilt** | Tilt device to balance a ball | 1-2 |
-| **Flick** | Swipe in a direction | 1-2 |
-| **Breath** | Follow a breathing circle | 1-3 |
-| **Rhythm** | Tap a specific pattern | 2-3 |
-| **Pressure** | Hold with specific pressure | 2-3 |
-| **Path** | Trace a path on screen | 2-4 |
-| **Semantic** | Identify an object/shape | 3-4 |
-| **Microchain** | Chain of micro-actions | 3-4 |
-| **Gaze** | Look at a target area | 3-4 |
-| **Contextual** | Answer a contextual question | 4 |
+### 2.3.0
+- Signal silence detection — bots with no pointer movement now flagged at `silenceAnomaly: 0.75`
+- Rebalanced OOS weights (headless 0.28, silence 0.14)
 
-## 5-Tier Friction Model
+### 2.2.0
+- Headless browser detection (webdriver flag, automation globals, WebGL renderer, canvas fingerprint)
+- Shannon entropy mouse path analysis
+- IP reputation with auto-escalation (proxy/datacenter → blocked)
+- Atomic daily stats via Supabase RPC
 
-| Tier | Score | Experience |
-|---|---|---|
-| **Ghost** | 0–1.5 | Invisible — no friction |
-| **Whisper** | 1.5–2.0 | 200ms delay — barely noticed |
-| **Nudge** | 2.0–2.5 | Simple gesture challenge |
-| **Pause** | 2.5–3.0 | Extended challenge |
-| **Gate** | 3.0+ | Full verification required |
+### 2.1.0
+- Cloud dashboard and app token system
+- Supabase telemetry pipeline
 
 ## License
 
