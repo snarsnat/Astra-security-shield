@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Typing Challenge — Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&family=Geist+Mono:wght@300..700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #f8f9fa;
+      --surface:     #ffffff;
+      --surface-alt: #f1f3f5;
+      --border:      #ced4da;
+      --text:        #111418;
+      --text-muted:  #6c757d;
+      --accent:      #ad1a04;
+      --font:        'IBM Plex Sans', system-ui, sans-serif;
+      --mono:        'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(206,212,218,0.45) 0px,
+        rgba(206,212,218,0.45) 1px,
+        transparent 1px,
+        transparent 24px
+      );
+    }
+
+    .container {
+      width: 100%;
+      max-width: 420px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .wordmark .tri { color: var(--accent); font-size: 0.7em; }
+
+    .header-text { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; }
+
+    .instruction { font-size: 18px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.01em; }
+    .instruction-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
+
+    .progress-bar { width: 100%; height: 2px; background: var(--surface-alt); border: 1px solid var(--border); margin-bottom: 28px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); width: 100%; transition: width 0.1s linear; }
+
+    .phrase-display {
+      font-family: var(--mono);
+      font-size: 15px;
+      line-height: 1.7;
+      letter-spacing: 0.02em;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      user-select: none;
+      word-break: break-all;
+    }
+
+    .phrase-char { position: relative; }
+    .phrase-char.correct { color: var(--text-muted); }
+    .phrase-char.wrong { color: var(--accent); background: rgba(173,26,4,0.08); }
+    .phrase-char.cursor::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      bottom: -1px;
+      width: 100%;
+      height: 2px;
+      background: var(--accent);
+      animation: blink 0.9s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .type-input {
+      width: 100%;
+      padding: 12px 14px;
+      font-family: var(--mono);
+      font-size: 14px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      outline: none;
+      margin-bottom: 24px;
+      caret-color: var(--accent);
+    }
+    .type-input:focus { border-color: var(--text-muted); }
+    .type-input.complete { border-color: var(--accent); }
+
+    .status { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
+    .status-item { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .status-value { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+    .status-value.done { color: var(--accent); }
+    .status-label { font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .action-area { border-top: 1px solid var(--border); padding-top: 24px; }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .action-btn:hover { background: #000; }
+    .action-btn:disabled { background: var(--surface-alt); color: var(--text-muted); border: 1px solid var(--border); cursor: not-allowed; }
+
+    .meta { display: flex; justify-content: space-between; margin-top: 14px; font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+    @media (max-width: 440px) { .container { padding: 32px 24px; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="wordmark"><span class="tri">▲</span> Astra</span>
+      <span class="header-text">Typing</span>
+    </div>
+
+    <div class="instruction">Type the phrase</div>
+    <div class="instruction-sub">Type exactly as shown. Rhythm matters — not just accuracy.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="phrase-display" id="phraseDisplay"></div>
+
+    <input
+      class="type-input"
+      id="typeInput"
+      type="text"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+      placeholder="Start typing..."
+      aria-label="Type the phrase above"
+    >
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="wpmVal">—</div>
+        <div class="status-label">WPM</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="accuracyVal">100%</div>
+        <div class="status-label">Accuracy</div>
+      </div>
+    </div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Waiting...</button>
+      <div class="meta">
+        <span>ASTRA-TYPING</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const phraseDisplay = document.getElementById('phraseDisplay');
+    const typeInput     = document.getElementById('typeInput');
+    const progressFill  = document.getElementById('progressFill');
+    const wpmVal        = document.getElementById('wpmVal');
+    const accuracyVal   = document.getElementById('accuracyVal');
+    const actionBtn     = document.getElementById('actionBtn');
+    const timestamp     = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const phrasePool = [
+      'the quick brown fox',
+      'open the door slowly',
+      'press enter to confirm',
+      'access denied try again',
+      'verify your identity now',
+      'welcome back to the site',
+      'submit the form below',
+      'please type this phrase',
+      'click here to continue',
+      'enter your details here',
+      'complete the verification',
+      'human check in progress',
+      'this is not a robot test',
+      'move the slider to unlock',
+      'your session is still active',
+    ];
+
+    const phrase = phrasePool[Math.floor(Math.random() * phrasePool.length)];
+    const duration = 15000;
+    const startTime = Date.now();
+    let finished = false;
+
+    // Keystroke timing data
+    const keystrokes = []; // { key, t, interval, correct }
+    let lastKeyTime = null;
+    let totalErrors = 0;
+    let firstKeyTime = null;
+
+    // Render phrase chars
+    function renderPhrase(typed) {
+      phraseDisplay.innerHTML = '';
+      for (let i = 0; i < phrase.length; i++) {
+        const span = document.createElement('span');
+        span.className = 'phrase-char';
+        span.textContent = phrase[i] === ' ' ? ' ' : phrase[i];
+        if (i < typed.length) {
+          span.classList.add(typed[i] === phrase[i] ? 'correct' : 'wrong');
+        } else if (i === typed.length) {
+          span.classList.add('cursor');
+        }
+        phraseDisplay.appendChild(span);
+      }
+    }
+    renderPhrase('');
+
+    typeInput.addEventListener('input', function(e) {
+      if (!e.isTrusted || finished) return;
+      const typed = typeInput.value;
+      renderPhrase(typed);
+
+      // WPM (words = chars / 5, from first keypress)
+      if (firstKeyTime !== null) {
+        const elapsed = (Date.now() - firstKeyTime) / 60000;
+        const words = typed.length / 5;
+        wpmVal.textContent = elapsed > 0 ? Math.round(words / elapsed) : '—';
+      }
+
+      // Accuracy
+      let correct = 0;
+      for (let i = 0; i < typed.length; i++) {
+        if (typed[i] === phrase[i]) correct++;
+      }
+      const acc = typed.length > 0 ? Math.round((correct / typed.length) * 100) : 100;
+      accuracyVal.textContent = acc + '%';
+
+      if (typed === phrase) {
+        finished = true;
+        typeInput.classList.add('complete');
+        accuracyVal.classList.add('done');
+        handleSuccess(typed, acc);
+      }
+    });
+
+    typeInput.addEventListener('keydown', function(e) {
+      if (!e.isTrusted || finished) return;
+      const now = Date.now();
+      if (firstKeyTime === null) firstKeyTime = now;
+      const interval = lastKeyTime !== null ? now - lastKeyTime : null;
+      lastKeyTime = now;
+
+      const pos = typeInput.value.length;
+      const correct = e.key.length === 1 ? (e.key === phrase[pos]) : null;
+      if (correct === false) totalErrors++;
+
+      keystrokes.push({ key: e.key, t: now - startTime, interval, correct });
+    });
+
+    function computeCV(intervals) {
+      if (intervals.length < 2) return 0;
+      const mean = intervals.reduce((a, b) => a + b, 0) / intervals.length;
+      if (mean === 0) return 0;
+      const variance = intervals.reduce((a, b) => a + (b - mean) ** 2, 0) / intervals.length;
+      return Math.sqrt(variance) / mean;
+    }
+
+    function handleSuccess(typed, acc) {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+
+      const validIntervals = keystrokes.map(k => k.interval).filter(x => x !== null && x < 2000);
+      const cv = computeCV(validIntervals);
+      const meanInterval = validIntervals.length > 0
+        ? validIntervals.reduce((a, b) => a + b, 0) / validIntervals.length
+        : 0;
+      const completionMs = firstKeyTime !== null ? Date.now() - firstKeyTime : 0;
+
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'typing',
+          success: true,
+          behaviorData: {
+            timingCV: cv,
+            meanIntervalMs: Math.round(meanInterval),
+            sampleCount: keystrokes.length,
+            errorCount: totalErrors,
+            accuracy: acc,
+            completionMs
+          }
+        }, window.location.origin);
+      }
+    }
+
+    function tick() {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+      if (finished) return;
+      if (remaining > 0) requestAnimationFrame(tick);
+      else handleTimeout();
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      typeInput.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'typing', success: false }, window.location.origin);
+      }
+    }
+
+    typeInput.focus();
+    tick();
+  </script>
+</body>
+</html>
