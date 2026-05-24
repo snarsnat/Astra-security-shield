@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spatial Challenge — Astra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&family=Geist+Mono:wght@300..700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/zdog@1/dist/zdog.dist.min.js"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg:          #f8f9fa;
+      --surface:     #ffffff;
+      --surface-alt: #f1f3f5;
+      --border:      #ced4da;
+      --text:        #111418;
+      --text-muted:  #6c757d;
+      --accent:      #ad1a04;
+      --font:        'IBM Plex Sans', system-ui, sans-serif;
+      --mono:        'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      -webkit-font-smoothing: antialiased;
+      user-select: none;
+      background-image: repeating-linear-gradient(
+        0deg,
+        rgba(206,212,218,0.45) 0px,
+        rgba(206,212,218,0.45) 1px,
+        transparent 1px,
+        transparent 24px
+      );
+    }
+
+    .container {
+      width: 100%;
+      max-width: 380px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 2px solid var(--accent);
+      padding: 40px 32px;
+      position: relative;
+    }
+
+    .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 32px; }
+
+    .wordmark {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .wordmark .tri { color: var(--accent); font-size: 0.7em; }
+
+    .header-text { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.12em; }
+
+    .instruction { font-size: 18px; font-weight: 500; margin-bottom: 6px; letter-spacing: -0.01em; }
+    .instruction-sub { font-size: 13px; color: var(--text-muted); margin-bottom: 28px; line-height: 1.5; }
+
+    .progress-bar { width: 100%; height: 2px; background: var(--surface-alt); border: 1px solid var(--border); margin-bottom: 28px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); width: 100%; transition: width 0.05s linear; }
+
+    .challenge-area {
+      width: 260px;
+      height: 260px;
+      margin: 0 auto 16px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      cursor: grab;
+      touch-action: none;
+    }
+    .challenge-area:active { cursor: grabbing; }
+    .challenge-area canvas { display: block; }
+
+    .lock-bar {
+      height: 2px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      width: 260px;
+      margin: 0 auto 16px;
+      overflow: hidden;
+    }
+    .lock-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width 0.08s linear;
+    }
+
+    .model-label {
+      font-family: var(--mono);
+      font-size: 9px;
+      color: var(--text-muted);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 20px;
+    }
+
+    .status { display: flex; justify-content: center; gap: 40px; margin-bottom: 24px; }
+    .status-item { text-align: center; display: flex; flex-direction: column; gap: 4px; }
+    .status-value { font-size: 22px; font-weight: 300; font-variant-numeric: tabular-nums; }
+    .status-value.done { color: var(--accent); }
+    .status-label { font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .hint { font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-align: center; margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.1em; }
+
+    .action-area { border-top: 1px solid var(--border); padding-top: 24px; }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px 20px;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 400;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+    .action-btn:hover { background: #000; }
+    .action-btn:disabled { background: var(--surface-alt); color: var(--text-muted); border: 1px solid var(--border); cursor: not-allowed; }
+
+    .meta { display: flex; justify-content: space-between; margin-top: 14px; font-family: var(--mono); font-size: 9px; color: var(--text-muted); letter-spacing: 0.1em; text-transform: uppercase; }
+
+    @media (max-width: 420px) { .container { padding: 32px 24px; } }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <span class="wordmark"><span class="tri">▲</span> Astra</span>
+      <span class="header-text">Spatial</span>
+    </div>
+
+    <div class="instruction">Rotate to the mark</div>
+    <div class="instruction-sub">Drag the shape until the <span style="color:var(--accent);font-weight:500">red dot</span> faces you. Hold it there.</div>
+
+    <div class="progress-bar">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="challenge-area" id="challengeArea">
+      <canvas id="zdogCanvas" width="260" height="260"></canvas>
+    </div>
+
+    <div class="lock-bar">
+      <div class="lock-fill" id="lockFill"></div>
+    </div>
+
+    <div class="model-label" id="modelLabel">Loading...</div>
+
+    <div class="status">
+      <div class="status-item">
+        <div class="status-value" id="dragsVal">0</div>
+        <div class="status-label">Drags</div>
+      </div>
+      <div class="status-item">
+        <div class="status-value" id="timeVal">12.0s</div>
+        <div class="status-label">Time</div>
+      </div>
+    </div>
+
+    <div class="hint">Drag to rotate — align red dot toward you</div>
+
+    <div class="action-area">
+      <button class="action-btn" id="actionBtn" disabled>Tracking...</button>
+      <div class="meta">
+        <span>ASTRA-SPATIAL</span>
+        <span id="timestamp"></span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const progressFill = document.getElementById('progressFill');
+    const lockFill     = document.getElementById('lockFill');
+    const modelLabel   = document.getElementById('modelLabel');
+    const dragsVal     = document.getElementById('dragsVal');
+    const timeVal      = document.getElementById('timeVal');
+    const actionBtn    = document.getElementById('actionBtn');
+    const timestamp    = document.getElementById('timestamp');
+
+    timestamp.textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+
+    const TAU = Zdog.TAU;
+    const duration = 12000;
+    const lockRequired = 700; // ms marker must face camera
+    const startTime = Date.now();
+    let finished = false;
+    let dragCount = 0;
+    let lockMs = 0;
+
+    // ─── Rotation helper ───────────────────────────────────────────────────────
+    // Applies Rx → Ry → Rz to vector v (matches Zdog's rotation order)
+    function rotateVec(v, rx, ry, rz) {
+      // Rx
+      let x = v.x, y = v.y * Math.cos(rx) - v.z * Math.sin(rx), z = v.y * Math.sin(rx) + v.z * Math.cos(rx);
+      // Ry
+      let x2 = x * Math.cos(ry) + z * Math.sin(ry), z2 = -x * Math.sin(ry) + z * Math.cos(ry), y2 = y;
+      // Rz
+      return { x: x2 * Math.cos(rz) - y2 * Math.sin(rz), y: x2 * Math.sin(rz) + y2 * Math.cos(rz), z: z2 };
+    }
+
+    // ─── Color palettes (light, muted, design-system-adjacent) ─────────────────
+    const palettes = [
+      ['#dee2e6', '#ced4da', '#e9ecef', '#adb5bd', '#c8d0d8', '#d6dce2'], // cool gray
+      ['#dce4f0', '#c6d0e4', '#e6ecf8', '#a8b8d0', '#c4d0e4', '#b8c8dc'], // slate blue
+      ['#ece8f0', '#d8d0e4', '#f4f0f8', '#b4a8c8', '#ccc4dc', '#c0b8d0'], // lavender
+      ['#f0ece4', '#e4dcd0', '#f8f4ec', '#c4b8a4', '#dcd4c4', '#d0c8b8'], // warm stone
+    ];
+
+    // ─── Marker face definitions ─────────────────────────────────────────────
+    // markerRot orients the Ellipse so its +z normal points along unitNorm
+    const ALL_FACES = [
+      { id:'front',  unitNorm:{x:0,y:0,z:1},  markerRot:{x:0,y:0,z:0} },
+      { id:'rear',   unitNorm:{x:0,y:0,z:-1}, markerRot:{x:0,y:TAU/2,z:0} },
+      { id:'right',  unitNorm:{x:1,y:0,z:0},  markerRot:{x:0,y:TAU/4,z:0} },
+      { id:'left',   unitNorm:{x:-1,y:0,z:0}, markerRot:{x:0,y:-TAU/4,z:0} },
+      { id:'top',    unitNorm:{x:0,y:-1,z:0}, markerRot:{x:TAU/4,y:0,z:0} },
+      { id:'bottom', unitNorm:{x:0,y:1,z:0},  markerRot:{x:-TAU/4,y:0,z:0} },
+    ];
+
+    // ─── Model definitions ────────────────────────────────────────────────────
+    // Each model returns available marker points (pos in local space, index into ALL_FACES)
+    const MODEL_POOL = [
+      {
+        id: 'cube', label: 'CUBE — ROTATE TO RED DOT',
+        build(group, pal) {
+          new Zdog.Box({ addTo:group, width:86, height:86, depth:86,
+            color:pal[0], leftFace:pal[1], rightFace:pal[2],
+            topFace:pal[3], bottomFace:pal[4], rearFace:pal[5], stroke:false });
+        },
+        // pos is the translation for the marker anchor, faceIdx indexes ALL_FACES
+        markers: [
+          { pos:{x:0,y:0,z:43},  faceIdx:0 },
+          { pos:{x:0,y:0,z:-43}, faceIdx:1 },
+          { pos:{x:43,y:0,z:0},  faceIdx:2 },
+          { pos:{x:-43,y:0,z:0}, faceIdx:3 },
+          { pos:{x:0,y:-43,z:0}, faceIdx:4 },
+          { pos:{x:0,y:43,z:0},  faceIdx:5 },
+        ],
+      },
+      {
+        id: 'column', label: 'COLUMN — ROTATE TO RED DOT',
+        build(group, pal) {
+          new Zdog.Box({ addTo:group, width:52, height:128, depth:52,
+            color:pal[0], leftFace:pal[1], rightFace:pal[2],
+            topFace:pal[3], bottomFace:pal[4], rearFace:pal[5], stroke:false });
+        },
+        markers: [
+          { pos:{x:0,y:0,z:26},   faceIdx:0 },
+          { pos:{x:0,y:0,z:-26},  faceIdx:1 },
+          { pos:{x:26,y:0,z:0},   faceIdx:2 },
+          { pos:{x:-26,y:0,z:0},  faceIdx:3 },
+          { pos:{x:0,y:-64,z:0},  faceIdx:4 },
+          { pos:{x:0,y:64,z:0},   faceIdx:5 },
+        ],
+      },
+      {
+        id: 'disc', label: 'DISC — ROTATE TO RED DOT',
+        build(group, pal) {
+          new Zdog.Cylinder({ addTo:group, diameter:108, length:42,
+            color:pal[0], backface:pal[3], stroke:false });
+        },
+        // Cylinder axis = z, caps at ±21, sides at radius 54
+        markers: [
+          { pos:{x:0,y:0,z:21},  faceIdx:0 },
+          { pos:{x:0,y:0,z:-21}, faceIdx:1 },
+          { pos:{x:54,y:0,z:0},  faceIdx:2 },
+          { pos:{x:-54,y:0,z:0}, faceIdx:3 },
+        ],
+      },
+      {
+        id: 'brick', label: 'BRICK — ROTATE TO RED DOT',
+        build(group, pal) {
+          new Zdog.Box({ addTo:group, width:116, height:52, depth:66,
+            color:pal[0], leftFace:pal[1], rightFace:pal[2],
+            topFace:pal[3], bottomFace:pal[4], rearFace:pal[5], stroke:false });
+        },
+        markers: [
+          { pos:{x:0,y:0,z:33},  faceIdx:0 },
+          { pos:{x:0,y:0,z:-33}, faceIdx:1 },
+          { pos:{x:58,y:0,z:0},  faceIdx:2 },
+          { pos:{x:-58,y:0,z:0}, faceIdx:3 },
+          { pos:{x:0,y:-26,z:0}, faceIdx:4 },
+          { pos:{x:0,y:26,z:0},  faceIdx:5 },
+        ],
+      },
+      {
+        id: 'cone', label: 'CONE — ROTATE TO RED DOT',
+        build(group, pal) {
+          // Cone: apex at +z, base circle at z=0 facing -z
+          new Zdog.Cone({ addTo:group, diameter:100, length:90,
+            color:pal[0], backface:pal[3], stroke:false });
+          // Add a flat disc at the base for visibility
+          new Zdog.Ellipse({ addTo:group, diameter:100, fill:true,
+            color:pal[5], stroke:false, translate:{z:0}, rotate:{x:0,y:0,z:0} });
+        },
+        markers: [
+          { pos:{x:0,y:0,z:-2},  faceIdx:1 }, // base face (facing -z)
+          { pos:{x:50,y:0,z:30}, faceIdx:2 }, // side (approximated as facing +x)
+          { pos:{x:-50,y:0,z:30},faceIdx:3 }, // side facing -x
+        ],
+      },
+      {
+        id: 'tower', label: 'TOWER — ROTATE TO RED DOT',
+        build(group, pal) {
+          // Base box
+          new Zdog.Box({ addTo:group, width:78, height:60, depth:78,
+            color:pal[0], leftFace:pal[1], rightFace:pal[2],
+            topFace:pal[3], bottomFace:pal[4], rearFace:pal[5], stroke:false,
+            translate:{y:30} });
+          // Dome on top
+          new Zdog.Hemisphere({ addTo:group, diameter:78,
+            color:pal[2], backface:pal[4], stroke:false,
+            translate:{y:-30} });
+        },
+        markers: [
+          { pos:{x:0,y:0,z:39},  faceIdx:0 }, // front of base
+          { pos:{x:0,y:0,z:-39}, faceIdx:1 }, // rear of base
+          { pos:{x:39,y:0,z:0},  faceIdx:2 }, // right of base
+          { pos:{x:-39,y:0,z:0}, faceIdx:3 }, // left of base
+          { pos:{x:0,y:-68,z:0}, faceIdx:4 }, // top of dome (y- is up)
+        ],
+      },
+    ];
+
+    // ─── Pick random model + palette + marker ─────────────────────────────────
+    function rnd(n) { return Math.floor(Math.random() * n); }
+    const modelDef  = MODEL_POOL[rnd(MODEL_POOL.length)];
+    const palette   = palettes[rnd(palettes.length)];
+    const markerPt  = modelDef.markers[rnd(modelDef.markers.length)];
+    const faceDef   = ALL_FACES[markerPt.faceIdx];
+
+    modelLabel.textContent = modelDef.label;
+
+    // ─── Build Zdog scene ─────────────────────────────────────────────────────
+    const illo = new Zdog.Illustration({
+      element: '#zdogCanvas',
+      dragRotate: true,
+      zoom: 1,
+      onDragStart() { dragCount++; dragsVal.textContent = dragCount; },
+    });
+
+    const group = new Zdog.Anchor({ addTo: illo });
+
+    // Build model geometry
+    modelDef.build(group, palette);
+
+    // Build marker: anchor at surface position, rotated to face outward
+    const markerAnchor = new Zdog.Anchor({
+      addTo: group,
+      translate: markerPt.pos,
+      rotate: faceDef.markerRot,
+    });
+
+    // Outer ring
+    new Zdog.Ellipse({
+      addTo: markerAnchor,
+      diameter: 30,
+      fill: false,
+      stroke: 2.5,
+      color: '#ad1a04',
+      backface: 'rgba(173,26,4,0.15)',
+      translate: { z: 2 },
+    });
+
+    // Inner filled dot
+    new Zdog.Ellipse({
+      addTo: markerAnchor,
+      diameter: 14,
+      fill: true,
+      stroke: false,
+      color: '#ad1a04',
+      backface: 'rgba(173,26,4,0.15)',
+      translate: { z: 2 },
+    });
+
+    // Small crosshair lines
+    new Zdog.Shape({
+      addTo: markerAnchor,
+      path: [{ x:-20, y:0 }, { x:20, y:0 }],
+      stroke: 1,
+      color: '#ad1a04',
+      backface: 'rgba(173,26,4,0.1)',
+      translate: { z: 1 },
+    });
+    new Zdog.Shape({
+      addTo: markerAnchor,
+      path: [{ x:0, y:-20 }, { x:0, y:20 }],
+      stroke: 1,
+      color: '#ad1a04',
+      backface: 'rgba(173,26,4,0.1)',
+      translate: { z: 1 },
+    });
+
+    // ─── Set non-trivial initial rotation ────────────────────────────────────
+    // Rotate so the target face is not already pointing at camera
+    illo.rotate.x = 0.42;
+    illo.rotate.y = 2.3 + (Math.random() - 0.5) * 0.8;
+    // If target is already facing camera, flip
+    const initRotated = rotateVec(faceDef.unitNorm, illo.rotate.x, illo.rotate.y, 0);
+    if (initRotated.z > 0.5) {
+      illo.rotate.y += TAU / 2;
+    }
+
+    // ─── Animation loop ───────────────────────────────────────────────────────
+    function tick() {
+      if (finished) return;
+
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, duration - elapsed);
+      progressFill.style.width = (remaining / duration * 100) + '%';
+      timeVal.textContent = (remaining / 1000).toFixed(1) + 's';
+
+      // Detect marker facing camera
+      const rx = illo.rotate.x, ry = illo.rotate.y, rz = illo.rotate.z || 0;
+      const rotNorm = rotateVec(faceDef.unitNorm, rx, ry, rz);
+      const facing = rotNorm.z; // 1 = directly facing, -1 = directly away
+
+      if (facing > 0.82) {
+        lockMs = Math.min(lockMs + 16, lockRequired);
+        lockFill.style.width = (lockMs / lockRequired * 100) + '%';
+        if (lockMs >= lockRequired) {
+          finished = true;
+          return handleSuccess();
+        }
+      } else {
+        lockMs = Math.max(0, lockMs - 24);
+        lockFill.style.width = (lockMs / lockRequired * 100) + '%';
+      }
+
+      illo.updateRenderGraph();
+
+      if (remaining > 0) requestAnimationFrame(tick);
+      else handleTimeout();
+    }
+
+    function handleSuccess() {
+      actionBtn.textContent = 'Verified';
+      actionBtn.disabled = false;
+      progressFill.style.background = 'var(--accent)';
+      lockFill.style.width = '100%';
+      dragsVal.classList.add('done');
+      illo.updateRenderGraph();
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'astra-challenge-result',
+          challenge: 'spatial',
+          success: true,
+          behaviorData: {
+            sampleCount: dragCount,
+            model: modelDef.id,
+            face: faceDef.id,
+          },
+        }, window.location.origin);
+      }
+    }
+
+    function handleTimeout() {
+      actionBtn.textContent = 'Challenge failed';
+      actionBtn.disabled = true;
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'astra-challenge-result', challenge: 'spatial', success: false }, window.location.origin);
+      }
+    }
+
+    illo.updateRenderGraph();
+    tick();
+  </script>
+</body>
+</html>
