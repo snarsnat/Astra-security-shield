@@ -55,6 +55,10 @@ class Astra {
     this.theme = options.theme || 'auto';
     this.storagePrefix = options.storagePrefix || 'astra_';
     this.sessionDuration = options.sessionDuration || 1800000;
+    // Cooldown defaults — server is the source of truth via retryAfter, but
+    // these handle the case where the server response omits a duration.
+    this.cooldownSeconds = options.cooldownSeconds || 60;
+    this._cooldownAutoReload = options.cooldownAutoReload !== false;
 
     // Event listeners
     this._listeners = {
@@ -208,10 +212,21 @@ class Astra {
       if (progEl) progEl.style.width = `${Math.max(0, (remaining / total) * 100)}%`;
       if (remaining <= 0) {
         // Re-check server-side; if still blocked, re-render with the remaining time.
+        // If unblocked, dismiss the screen and reload so the caller's protected
+        // action can re-run cleanly with the elevated risk tier carried forward.
         self._checkCooldownStatus().then(status => {
-          overlay.remove();
           if (status && status.cooldown && status.retryAfter > 0) {
+            overlay.remove();
             self._renderCooldownScreen(status.retryAfter, status);
+            return;
+          }
+          overlay.remove();
+          self._emit('cooldownCleared', { tier: (status && status.tier) || 0 });
+          // Auto-reload to resume the original action — server-side risk tier
+          // is now elevated, so the user lands on a higher-friction challenge
+          // rather than the Ghost-tier baseline.
+          if (self._cooldownAutoReload !== false && typeof window !== 'undefined') {
+            setTimeout(() => { try { window.location.reload(); } catch (e) {} }, 400);
           }
         }).catch(() => { overlay.remove(); });
         return;
@@ -245,6 +260,18 @@ class Astra {
     }
 
     try {
+      // Reload-resistant pre-flight: if the server says this fingerprint is
+      // already in a cooldown window, render the screen and don't even bother
+      // running the protect() flow.
+      if (typeof window !== 'undefined') {
+        const status = await this._checkCooldownStatus();
+        if (status && status.cooldown && status.retryAfter > 0) {
+          this._renderCooldownScreen(status.retryAfter, status);
+          this._emit('blocked', { reason: 'cooldown_active', retryAfter: status.retryAfter });
+          return { success: false, reason: 'cooldown_active', retryAfter: status.retryAfter };
+        }
+      }
+
       // Collect behavioral data
       const behaviorData = this._collectBehaviorData();
 
@@ -269,11 +296,12 @@ class Astra {
       // Reload-resistant: even if user refreshes mid-action the server still
       // says cooldown:true and the screen comes back.
       if (result.cooldown || result.reason === 'cooldown_active' || result.reason === 'hard_blocked') {
-        if (typeof window !== 'undefined' && result.retryAfter > 0) {
-          this._renderCooldownScreen(result.retryAfter, result);
+        const seconds = result.retryAfter > 0 ? result.retryAfter : this.cooldownSeconds;
+        if (typeof window !== 'undefined') {
+          this._renderCooldownScreen(seconds, result);
         }
         this._emit('blocked', result);
-        return { success: false, reason: 'cooldown_active', retryAfter: result.retryAfter };
+        return { success: false, reason: 'cooldown_active', retryAfter: seconds };
       }
 
       // Handle result

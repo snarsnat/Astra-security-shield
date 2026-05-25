@@ -27,7 +27,10 @@ export const challenges = globalThis.astraChallenges;
 const blocks = globalThis.astraBlocks;
 
 const MAX_BLOCKS = 10_000;
-const BLOCK_TTL_MS = 10 * 60_000; // 10 min hard block
+// Hard cooldown TTL — 60s default, override with ASTRA_COOLDOWN_SECONDS.
+// Capped to [10s, 1h] to keep typos from accidentally locking everyone out.
+const COOLDOWN_SECONDS = Math.min(3600, Math.max(10, parseInt(process.env.ASTRA_COOLDOWN_SECONDS || '60', 10) || 60));
+const BLOCK_TTL_MS = COOLDOWN_SECONDS * 1000;
 const FAILURE_HARD_BLOCK = 5;     // 5+ failures → hard block
 const FAILURE_ESCALATE_1 = 2;     // 2+ failures → bump one tier
 const FAILURE_ESCALATE_2 = 3;     // 3+ failures → jump to Gate
