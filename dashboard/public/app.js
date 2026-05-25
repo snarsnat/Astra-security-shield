@@ -113,6 +113,9 @@ function navigateToApp(appName) {
   loadAppAnalytics(appName);
   updateSidebar();
   showPage('overview');
+  restoreLayout();
+  initLayoutDrag();
+  applySettings(loadSettings());
 }
 
 function navigateToPage(page) {
@@ -147,10 +150,205 @@ function updateSidebar() {
 }
 
 function showPage(page) {
-  ['overview', 'protection', 'flags', 'traffic', 'oos-scores', 'live-feed', 'challenges', 'sessions'].forEach(p => {
+  ['overview', 'protection', 'flags', 'traffic', 'oos-scores', 'live-feed', 'challenges', 'sessions', 'settings'].forEach(p => {
     const el = document.getElementById(`page-${p}`);
     if (el) el.classList.toggle('hidden', p !== page);
   });
+  if (page === 'settings') loadSettingsPage();
+}
+
+// ─── Settings ────────────────────────────────────────────────
+
+const DEFAULT_SETTINGS = {
+  defaultPage: 'overview',
+  autoRefresh: '0',
+  showRibbon: true,
+  cooldown: 60,
+  maxFailures: 5,
+  ipReputation: true,
+  headlessDetection: true,
+  silenceDetection: true,
+  tier1: 1.5, tier2: 2.0, tier3: 2.5, tier4: 3.0,
+  weights: { mouseEntropy: 0.15, clickAnomalies: 0.12, keyboardAnomaly: 0.12, scrollAnomaly: 0.08, touchAnomaly: 0.08, sessionAnomaly: 0.15, silenceAnomaly: 0.14, headlessScore: 0.16 }
+};
+
+function settingsKey() { return `astra-settings-${state.currentApp || 'global'}`; }
+
+function loadSettings() {
+  try { return Object.assign({}, DEFAULT_SETTINGS, JSON.parse(localStorage.getItem(settingsKey()) || '{}')); }
+  catch { return Object.assign({}, DEFAULT_SETTINGS); }
+}
+
+function saveSettings(s) { localStorage.setItem(settingsKey(), JSON.stringify(s)); }
+
+function saveSetting(key, val) {
+  const s = loadSettings();
+  s[key] = val;
+  saveSettings(s);
+  applySettings(s);
+}
+
+function applySettings(s) {
+  const ribbon = document.getElementById('protectionRibbon');
+  if (ribbon) ribbon.style.display = s.showRibbon === false ? 'none' : '';
+  if (s.autoRefresh && +s.autoRefresh > 0) {
+    clearInterval(window._autoRefreshTimer);
+    window._autoRefreshTimer = setInterval(() => { if (state.currentPage === 'overview') refreshLiveFeed(); }, +s.autoRefresh * 1000);
+  } else {
+    clearInterval(window._autoRefreshTimer);
+  }
+}
+
+function loadSettingsPage() {
+  const s = loadSettings();
+  const set = (id, val) => { const el = document.getElementById(id); if (el) { if (el.type === 'checkbox') el.checked = !!val; else el.value = val; } };
+  set('setting-defaultPage', s.defaultPage);
+  set('setting-autoRefresh', s.autoRefresh);
+  set('setting-showRibbon', s.showRibbon !== false);
+  set('setting-cooldown', s.cooldown);
+  document.getElementById('cooldown-val').textContent = formatSeconds(s.cooldown);
+  set('setting-maxFailures', s.maxFailures);
+  set('setting-ipReputation', s.ipReputation !== false);
+  set('setting-headlessDetection', s.headlessDetection !== false);
+  set('setting-silenceDetection', s.silenceDetection !== false);
+  set('setting-tier1', s.tier1); document.getElementById('tier1-val').textContent = s.tier1;
+  set('setting-tier2', s.tier2); document.getElementById('tier2-val').textContent = s.tier2;
+  set('setting-tier3', s.tier3); document.getElementById('tier3-val').textContent = s.tier3;
+  set('setting-tier4', s.tier4); document.getElementById('tier4-val').textContent = s.tier4;
+  renderWeightSliders(s.weights);
+}
+
+function renderWeightSliders(weights) {
+  const container = document.getElementById('weightSliders');
+  if (!container) return;
+  const labels = { mouseEntropy: 'Mouse entropy', clickAnomalies: 'Click anomalies', keyboardAnomaly: 'Keyboard anomaly', scrollAnomaly: 'Scroll anomaly', touchAnomaly: 'Touch anomaly', sessionAnomaly: 'Session anomaly', silenceAnomaly: 'Silence anomaly', headlessScore: 'Headless score' };
+  container.innerHTML = Object.entries(weights).map(([k, v]) => `
+    <div class="settings-row">
+      <div class="settings-label"><span class="settings-name">${labels[k] || k}</span></div>
+      <div class="settings-slider-group">
+        <input type="range" class="settings-slider" min="0" max="0.5" step="0.01" value="${v}"
+          oninput="document.getElementById('w-${k}').textContent=this.value; updateWeight('${k}', +this.value)">
+        <span class="settings-slider-val" id="w-${k}">${v}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateWeight(key, val) {
+  const s = loadSettings();
+  s.weights[key] = val;
+  saveSettings(s);
+}
+
+function resetWeights() {
+  const s = loadSettings();
+  s.weights = Object.assign({}, DEFAULT_SETTINGS.weights);
+  s.tier1 = DEFAULT_SETTINGS.tier1; s.tier2 = DEFAULT_SETTINGS.tier2;
+  s.tier3 = DEFAULT_SETTINGS.tier3; s.tier4 = DEFAULT_SETTINGS.tier4;
+  saveSettings(s);
+  loadSettingsPage();
+}
+
+function clearSettings() {
+  if (!confirm('Clear all saved settings for this app?')) return;
+  localStorage.removeItem(settingsKey());
+  loadSettingsPage();
+  applySettings(DEFAULT_SETTINGS);
+}
+
+function toggleAdvanced() {
+  const el = document.getElementById('advancedSettings');
+  if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
+function formatSeconds(s) {
+  if (s < 60) return s + 's';
+  if (s < 3600) return Math.round(s / 60) + 'm';
+  return Math.round(s / 3600) + 'h';
+}
+
+// ─── Layout Editor ───────────────────────────────────────────
+
+let _layoutEditing = false;
+let _dragSrc = null;
+
+function layoutKey() { return `astra-layout-${state.currentApp || 'global'}`; }
+
+function saveLayout() {
+  const ids = Array.from(document.querySelectorAll('#overviewSections .layout-section')).map(el => el.dataset.sectionId);
+  localStorage.setItem(layoutKey(), JSON.stringify(ids));
+}
+
+function restoreLayout() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(layoutKey()));
+    if (!saved || !saved.length) return;
+    const container = document.getElementById('overviewSections');
+    if (!container) return;
+    saved.forEach(id => {
+      const el = container.querySelector(`[data-section-id="${id}"]`);
+      if (el) container.appendChild(el);
+    });
+  } catch {}
+}
+
+function resetLayout() {
+  localStorage.removeItem(layoutKey());
+  // restore DOM order to default
+  const container = document.getElementById('overviewSections');
+  if (!container) return;
+  ['charts', 'risk-trend', 'live-feed', 'daily-visitors'].forEach(id => {
+    const el = container.querySelector(`[data-section-id="${id}"]`);
+    if (el) container.appendChild(el);
+  });
+  const hint = document.getElementById('layoutHint');
+  if (hint) hint.textContent = 'Layout reset.';
+  setTimeout(() => { if (hint) hint.textContent = ''; }, 2000);
+}
+
+function toggleLayoutEdit() {
+  _layoutEditing = !_layoutEditing;
+  const container = document.getElementById('overviewSections');
+  const btn = document.getElementById('layoutEditBtn');
+  const hint = document.getElementById('layoutHint');
+  if (!container) return;
+  container.classList.toggle('layout-editing', _layoutEditing);
+  btn.textContent = _layoutEditing ? 'DONE' : 'CUSTOMIZE LAYOUT';
+  if (hint) hint.textContent = _layoutEditing ? 'Drag sections to reorder' : '';
+  if (!_layoutEditing) saveLayout();
+}
+
+function initLayoutDrag() {
+  const container = document.getElementById('overviewSections');
+  if (!container) return;
+  container.addEventListener('dragstart', e => {
+    const sec = e.target.closest('.layout-section');
+    if (!sec || !_layoutEditing) { e.preventDefault(); return; }
+    _dragSrc = sec;
+    sec.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  container.addEventListener('dragend', e => {
+    const sec = e.target.closest('.layout-section');
+    if (sec) sec.classList.remove('dragging');
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+  container.addEventListener('dragover', e => {
+    e.preventDefault();
+    const sec = e.target.closest('.layout-section');
+    if (!sec || sec === _dragSrc) return;
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    sec.classList.add('drag-over');
+    const rect = sec.getBoundingClientRect();
+    const after = e.clientY > rect.top + rect.height / 2;
+    if (after) sec.after(_dragSrc); else sec.before(_dragSrc);
+  });
+  container.addEventListener('drop', e => {
+    e.preventDefault();
+    container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+  });
+  // make sections draggable
+  container.querySelectorAll('.layout-section').forEach(sec => sec.setAttribute('draggable', 'true'));
 }
 
 // ─── Load Apps ─────────────────────────────────────────────

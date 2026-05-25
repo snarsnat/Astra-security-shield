@@ -67,6 +67,9 @@
           <a data-page="sessions">
             <span class="name">Sessions</span>
           </a>
+          <a data-page="settings">
+            <span class="name">Settings</span>
+          </a>
         </div>
       </div>
 
@@ -74,72 +77,83 @@
         <!-- Overview Page -->
         <div id="page-overview">
           <div class="stats-row" id="statsRow"></div>
-
-          <!-- Protection Score Ribbon -->
           <div class="section protection-ribbon" id="protectionRibbon"></div>
 
-          <div class="section">
-            <div class="chart-container">
-              <div class="chart-box">
-                <h3>Bot vs Human</h3>
-                <canvas id="botHumanChart" width="350" height="260"></canvas>
-              </div>
-              <div class="chart-box">
-                <h3>Attack Types</h3>
-                <canvas id="pieChart" width="350" height="260"></canvas>
-              </div>
-              <div class="chart-box">
-                <h3>Monthly Visitors</h3>
-                <canvas id="barChart" width="400" height="260"></canvas>
-              </div>
-            </div>
+          <!-- Layout toolbar -->
+          <div class="layout-toolbar" id="layoutToolbar">
+            <span class="layout-toolbar-hint" id="layoutHint"></span>
+            <button class="section-action" id="layoutEditBtn" onclick="toggleLayoutEdit()">CUSTOMIZE LAYOUT</button>
           </div>
-          <div class="section">
-            <div class="section-header">
-              <span class="section-title">Risk Trend (30d)</span>
-            </div>
-            <div class="chart-container">
-              <div class="chart-box" style="min-width: 100%;">
-                <canvas id="riskTrendChart" width="800" height="200"></canvas>
+
+          <!-- Draggable sections container -->
+          <div id="overviewSections">
+            <div class="section layout-section" data-section-id="charts">
+              <div class="drag-handle" title="Drag to reorder">⠿</div>
+              <div class="chart-container">
+                <div class="chart-box">
+                  <h3>Bot vs Human</h3>
+                  <canvas id="botHumanChart" width="350" height="260"></canvas>
+                </div>
+                <div class="chart-box">
+                  <h3>Attack Types</h3>
+                  <canvas id="pieChart" width="350" height="260"></canvas>
+                </div>
+                <div class="chart-box">
+                  <h3>Monthly Visitors</h3>
+                  <canvas id="barChart" width="400" height="260"></canvas>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="section">
-            <div class="section-header">
-              <span class="section-title">Live Activity Feed</span>
-              <div class="section-actions">
-                <button class="section-action" onclick="exportFeedCSV('overview')">EXPORT CSV</button>
-                <button class="section-action" onclick="refreshLiveFeed()">REFRESH</button>
+            <div class="section layout-section" data-section-id="risk-trend">
+              <div class="drag-handle" title="Drag to reorder">⠿</div>
+              <div class="section-header">
+                <span class="section-title">Risk Trend (30d)</span>
+              </div>
+              <div class="chart-container">
+                <div class="chart-box" style="min-width: 100%;">
+                  <canvas id="riskTrendChart" width="800" height="200"></canvas>
+                </div>
               </div>
             </div>
-            <div class="feed-controls">
-              <input type="text" id="feedSearchOverview" placeholder="Search by IP, action, or tier..." oninput="filterFeed()">
-              <select id="feedFilterTier" onchange="filterFeed()">
-                <option value="">All Tiers</option>
-                <option value="0">Ghost</option>
-                <option value="1">Whisper</option>
-                <option value="2">Nudge</option>
-                <option value="3">Pause</option>
-                <option value="4">Gate</option>
-              </select>
-              <select id="feedFilterAction" onchange="filterFeed()">
-                <option value="">All Actions</option>
-                <option value="blocked">Blocked</option>
-                <option value="passed">Passed</option>
-                <option value="challenge">Challenge</option>
-              </select>
+            <div class="section layout-section" data-section-id="live-feed">
+              <div class="drag-handle" title="Drag to reorder">⠿</div>
+              <div class="section-header">
+                <span class="section-title">Live Activity Feed</span>
+                <div class="section-actions">
+                  <button class="section-action" onclick="exportFeedCSV('overview')">EXPORT CSV</button>
+                  <button class="section-action" onclick="refreshLiveFeed()">REFRESH</button>
+                </div>
+              </div>
+              <div class="feed-controls">
+                <input type="text" id="feedSearchOverview" placeholder="Search by IP, action, or tier..." oninput="filterFeed()">
+                <select id="feedFilterTier" onchange="filterFeed()">
+                  <option value="">All Tiers</option>
+                  <option value="0">Ghost</option>
+                  <option value="1">Whisper</option>
+                  <option value="2">Nudge</option>
+                  <option value="3">Pause</option>
+                  <option value="4">Gate</option>
+                </select>
+                <select id="feedFilterAction" onchange="filterFeed()">
+                  <option value="">All Actions</option>
+                  <option value="blocked">Blocked</option>
+                  <option value="passed">Passed</option>
+                  <option value="challenge">Challenge</option>
+                </select>
+              </div>
+              <div class="feed-list" id="feedListOverview"></div>
+              <div class="pagination" id="feedPagination"></div>
             </div>
-            <div class="feed-list" id="feedListOverview"></div>
-            <div class="pagination" id="feedPagination"></div>
-          </div>
-          <div class="section">
-            <div class="section-header">
-              <span class="section-title">Daily Visitors (30d)</span>
-              <button class="section-action" onclick="exportVisitorsCSV()">EXPORT CSV</button>
-            </div>
-            <div class="chart-container">
-              <div class="chart-box" style="min-width: 100%;">
-                <canvas id="lineChart" width="800" height="200"></canvas>
+            <div class="section layout-section" data-section-id="daily-visitors">
+              <div class="drag-handle" title="Drag to reorder">⠿</div>
+              <div class="section-header">
+                <span class="section-title">Daily Visitors (30d)</span>
+                <button class="section-action" onclick="exportVisitorsCSV()">EXPORT CSV</button>
+              </div>
+              <div class="chart-container">
+                <div class="chart-box" style="min-width: 100%;">
+                  <canvas id="lineChart" width="800" height="200"></canvas>
+                </div>
               </div>
             </div>
           </div>
@@ -283,6 +297,190 @@
               <span class="section-title">Behavioral Metrics</span>
             </div>
             <div class="behavior-metrics" id="behaviorMetrics"></div>
+          </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="page-settings" class="hidden">
+          <div class="page-header">
+            <h1>App <span class="accent">Settings</span></h1>
+            <p>Configure detection behavior, display preferences, and advanced signal weights for this app.</p>
+          </div>
+
+          <!-- General -->
+          <div class="section">
+            <div class="section-header"><span class="section-title">General</span></div>
+            <div class="settings-body">
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Default page on load</span>
+                  <span class="settings-desc">Which page to open when you navigate to this app</span>
+                </div>
+                <select class="settings-input" id="setting-defaultPage" onchange="saveSetting('defaultPage', this.value)">
+                  <option value="overview">Overview</option>
+                  <option value="protection">Protection</option>
+                  <option value="live-feed">Live Feed</option>
+                  <option value="flags">Flagged</option>
+                </select>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Auto-refresh interval</span>
+                  <span class="settings-desc">How often live data refreshes automatically (0 = off)</span>
+                </div>
+                <select class="settings-input" id="setting-autoRefresh" onchange="saveSetting('autoRefresh', this.value)">
+                  <option value="0">Off</option>
+                  <option value="10">10 seconds</option>
+                  <option value="30">30 seconds</option>
+                  <option value="60">1 minute</option>
+                  <option value="300">5 minutes</option>
+                </select>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Show protection ribbon</span>
+                  <span class="settings-desc">Display the protection score bar at the top of Overview</span>
+                </div>
+                <label class="settings-toggle">
+                  <input type="checkbox" id="setting-showRibbon" onchange="saveSetting('showRibbon', this.checked)">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detection -->
+          <div class="section">
+            <div class="section-header"><span class="section-title">Detection</span></div>
+            <div class="settings-body">
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Cooldown duration</span>
+                  <span class="settings-desc">How long a locked-out session must wait before retrying</span>
+                </div>
+                <div class="settings-slider-group">
+                  <input type="range" class="settings-slider" id="setting-cooldown" min="10" max="3600" step="10"
+                    oninput="document.getElementById('cooldown-val').textContent=formatSeconds(+this.value); saveSetting('cooldown', +this.value)">
+                  <span class="settings-slider-val" id="cooldown-val">60s</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Max consecutive failures</span>
+                  <span class="settings-desc">Failures before session is locked out (1–10)</span>
+                </div>
+                <input type="number" class="settings-input settings-input--sm" id="setting-maxFailures" min="1" max="10"
+                  onchange="saveSetting('maxFailures', +this.value)">
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">IP reputation check</span>
+                  <span class="settings-desc">Auto-escalate proxy and datacenter IPs to Gate tier</span>
+                </div>
+                <label class="settings-toggle">
+                  <input type="checkbox" id="setting-ipReputation" onchange="saveSetting('ipReputation', this.checked)">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Headless browser detection</span>
+                  <span class="settings-desc">Detect Puppeteer, Playwright, Selenium via env fingerprinting</span>
+                </div>
+                <label class="settings-toggle">
+                  <input type="checkbox" id="setting-headlessDetection" onchange="saveSetting('headlessDetection', this.checked)">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Signal silence detection</span>
+                  <span class="settings-desc">Flag sessions with zero pointer movement or no behavioral input</span>
+                </div>
+                <label class="settings-toggle">
+                  <input type="checkbox" id="setting-silenceDetection" onchange="saveSetting('silenceDetection', this.checked)">
+                  <span class="toggle-track"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced -->
+          <div class="section">
+            <div class="section-header">
+              <span class="section-title">Advanced — OOS Signal Weights</span>
+              <button class="section-action" onclick="toggleAdvanced()">SHOW / HIDE</button>
+            </div>
+            <div class="settings-body" id="advancedSettings" style="display:none">
+              <p class="settings-note">These weights determine how much each behavioral signal contributes to the OOS score. Values are normalized automatically — changing one affects all.</p>
+              <div id="weightSliders"></div>
+              <div class="settings-row" style="margin-top:16px;">
+                <div class="settings-label">
+                  <span class="settings-name">Tier 1 threshold (Whisper)</span>
+                  <span class="settings-desc">OOS score at which Ghost escalates to Whisper</span>
+                </div>
+                <div class="settings-slider-group">
+                  <input type="range" class="settings-slider" id="setting-tier1" min="0.5" max="2" step="0.1"
+                    oninput="document.getElementById('tier1-val').textContent=this.value; saveSetting('tier1', +this.value)">
+                  <span class="settings-slider-val" id="tier1-val">1.5</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Tier 2 threshold (Nudge)</span>
+                </div>
+                <div class="settings-slider-group">
+                  <input type="range" class="settings-slider" id="setting-tier2" min="1" max="2.5" step="0.1"
+                    oninput="document.getElementById('tier2-val').textContent=this.value; saveSetting('tier2', +this.value)">
+                  <span class="settings-slider-val" id="tier2-val">2.0</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Tier 3 threshold (Pause)</span>
+                </div>
+                <div class="settings-slider-group">
+                  <input type="range" class="settings-slider" id="setting-tier3" min="1.5" max="3" step="0.1"
+                    oninput="document.getElementById('tier3-val').textContent=this.value; saveSetting('tier3', +this.value)">
+                  <span class="settings-slider-val" id="tier3-val">2.5</span>
+                </div>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Tier 4 threshold (Gate)</span>
+                </div>
+                <div class="settings-slider-group">
+                  <input type="range" class="settings-slider" id="setting-tier4" min="2" max="4" step="0.1"
+                    oninput="document.getElementById('tier4-val').textContent=this.value; saveSetting('tier4', +this.value)">
+                  <span class="settings-slider-val" id="tier4-val">3.0</span>
+                </div>
+              </div>
+              <div class="settings-row" style="margin-top:8px;">
+                <div></div>
+                <button class="settings-btn" onclick="resetWeights()">RESET TO DEFAULTS</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Danger Zone -->
+          <div class="section">
+            <div class="section-header"><span class="section-title" style="color:var(--red)">Danger Zone</span></div>
+            <div class="settings-body">
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Reset layout</span>
+                  <span class="settings-desc">Restore Overview sections to default order</span>
+                </div>
+                <button class="settings-btn settings-btn--danger" onclick="resetLayout()">RESET LAYOUT</button>
+              </div>
+              <div class="settings-row">
+                <div class="settings-label">
+                  <span class="settings-name">Clear all settings</span>
+                  <span class="settings-desc">Remove all saved preferences for this app</span>
+                </div>
+                <button class="settings-btn settings-btn--danger" onclick="clearSettings()">CLEAR SETTINGS</button>
+              </div>
+            </div>
           </div>
         </div>
 
