@@ -1,6 +1,6 @@
 {
   "name": "astra-shield",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "Invisible bot detection & human verification — the best security is the security you never notice",
   "type": "module",
   "main": "src/index.js",
@@ -53,7 +53,7 @@
     "fraud-prevention"
   ],
   "author": "Nausheen Suraj",
-  "license": "MIT",
+  "license": "Apache-2.0 WITH Commons-Clause",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/snarsnat/Astra-security-shield.git"
