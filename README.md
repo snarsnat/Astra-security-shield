@@ -33,7 +33,7 @@ astra connect
 astra status
 ```
 
-Then sign in at **[astra-shield-site.vercel.app](https://astra-shield-site.vercel.app)** to view your analytics.
+Then sign in at **[astrasec.xyz](astrasec.xyz)** to view your analytics.
 
 ## CLI Commands
 
