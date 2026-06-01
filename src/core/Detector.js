@@ -4,6 +4,8 @@
  */
 
 import { ThreatDetector } from './ThreatDetector.js';
+import { FingerprintEngine } from './FingerprintEngine.js';
+import { ScriptMonitor } from './ScriptMonitor.js';
 
 export class Detector {
   constructor(options = {}) {
@@ -47,7 +49,9 @@ export class Detector {
       threatAnomaly: 0,
     };
 
-    this.threatDetector = new ThreatDetector();
+    this.threatDetector    = new ThreatDetector();
+    this.fingerprintEngine = new FingerprintEngine();
+    this.scriptMonitor     = new ScriptMonitor();
 
     this.initTime = Date.now();
 
@@ -72,6 +76,8 @@ export class Detector {
   async init(session) {
     this.session = session;
     this.threatDetector.init();
+    this.scriptMonitor.init();
+    this.fingerprintEngine.collect().catch(() => {});
     this.startAnalysis();
     return this;
   }
@@ -254,7 +260,9 @@ export class Detector {
     this.scores.sessionAnomaly = this.analyzeSessionPattern();
     this.scores.headlessAnomaly = this.detectHeadless();
     this.scores.silenceAnomaly = this.detectSignalSilence();
-    this.scores.threatAnomaly = this.threatDetector.getThreatScore();
+    this.scores.threatAnomaly    = this.threatDetector.getThreatScore();
+    this.scores.scriptAnomaly    = this.scriptMonitor.getScore();
+    this.scores.fingerprintScore = this.fingerprintEngine.getScore();
   }
 
   // Absent behavioral signals are themselves a signal.
@@ -577,8 +585,11 @@ export class Detector {
       score += this.scores[key] * weight;
     }
 
-    // Threat signals are additive — confirmed keylogger/injection pushes past Gate tier regardless of behavioral score
+    // Threat signals are additive — confirmed keylogger/injection pushes past Gate tier
     score += this.scores.threatAnomaly * 0.80;
+    // Script behavior drift and deep fingerprinting are also additive
+    score += (this.scores.scriptAnomaly    || 0) * 0.70;
+    score += (this.scores.fingerprintScore || 0) * 0.60;
 
     // Apply session trust modifier
     if (this.session) {
@@ -630,7 +641,9 @@ export class Detector {
       sessionAnomaly: 0,
       headlessAnomaly: 0,
       silenceAnomaly: 0,
-      threatAnomaly: 0,
+      threatAnomaly:    0,
+      scriptAnomaly:    0,
+      fingerprintScore: 0,
     };
     this.initTime = Date.now();
 

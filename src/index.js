@@ -9,6 +9,10 @@ export { Astra } from './sdk/Astra.js';
 // WAF / input validation
 export { InputGuard } from './core/InputGuard.js';
 
+// Deep fingerprinting and script behavior profiling
+export { FingerprintEngine } from './core/FingerprintEngine.js';
+export { ScriptMonitor }     from './core/ScriptMonitor.js';
+
 // Legacy browser SDK
 export { ASTRAShield } from './core/Shield.js';
 export { Session } from './core/Session.js';

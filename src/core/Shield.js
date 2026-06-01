@@ -410,8 +410,12 @@ class ASTRAShield {
       const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
       const device = /Mobi|Android/i.test(ua) ? 'mobile' : /Tablet|iPad/i.test(ua) ? 'tablet' : 'desktop';
       const browser = /Edg\//i.test(ua) ? 'Edge' : /OPR\//i.test(ua) ? 'Opera' : /Chrome/i.test(ua) ? 'Chrome' : /Firefox/i.test(ua) ? 'Firefox' : /Safari/i.test(ua) ? 'Safari' : 'Other';
-      const attackType = this.detector?.threatDetector?.getAttackType() || null;
+      const attackType = this.detector?.threatDetector?.getAttackType()
+                      || this.detector?.scriptMonitor?.getAttackType()
+                      || null;
       const activeAttackTypes = this.detector?.threatDetector?.getActiveAttackTypes() || [];
+      const scriptViolations  = this.detector?.scriptMonitor?.getViolations().slice(0, 3) || [];
+      const deepFingerprint   = this.detector?.fingerprintEngine?.getSummary() || null;
       fetch(this.options.telemetryEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-App-Token': this.options.appToken },
@@ -419,6 +423,8 @@ class ASTRAShield {
           type, device, browser,
           ...(attackType ? { attackType } : {}),
           ...(activeAttackTypes.length > 1 ? { activeAttackTypes } : {}),
+          ...(scriptViolations.length ? { scriptViolations } : {}),
+          ...(deepFingerprint?.isHeadless ? { deepHeadless: true } : {}),
           ...payload,
         }),
         keepalive: true,
