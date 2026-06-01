@@ -410,10 +410,17 @@ class ASTRAShield {
       const ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
       const device = /Mobi|Android/i.test(ua) ? 'mobile' : /Tablet|iPad/i.test(ua) ? 'tablet' : 'desktop';
       const browser = /Edg\//i.test(ua) ? 'Edge' : /OPR\//i.test(ua) ? 'Opera' : /Chrome/i.test(ua) ? 'Chrome' : /Firefox/i.test(ua) ? 'Firefox' : /Safari/i.test(ua) ? 'Safari' : 'Other';
+      const attackType = this.detector?.threatDetector?.getAttackType() || null;
+      const activeAttackTypes = this.detector?.threatDetector?.getActiveAttackTypes() || [];
       fetch(this.options.telemetryEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-App-Token': this.options.appToken },
-        body: JSON.stringify({ type, device, browser, ...payload }),
+        body: JSON.stringify({
+          type, device, browser,
+          ...(attackType ? { attackType } : {}),
+          ...(activeAttackTypes.length > 1 ? { activeAttackTypes } : {}),
+          ...payload,
+        }),
         keepalive: true,
       }).catch(() => {});
     } catch {}
