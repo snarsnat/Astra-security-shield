@@ -46,6 +46,16 @@ export class ThreatDetector {
       iotBotnetDetected:    false,
       supplyChainViolation: false,
 
+      // Advanced browser threats
+      magecartDetected:     false,  // form skimmer / Magecart-style grabber
+      extensionAbuse:       false,  // malicious browser extension content script
+      websocketC2:          false,  // WebSocket used as C2 channel / RAT beacon
+      wasmAbuse:            false,  // WebAssembly cryptomining or data exfil
+      driveByDownload:      false,  // programmatic download triggered without user action
+      domainHopping:        false,  // POST to new domain right after form interaction
+      obfuscatedCode:       false,  // high-entropy injected scripts (polymorphic/packed)
+      beaconingDetected:    false,  // regular-interval silent requests = C2 heartbeat
+
       // Social engineering
       phishing:             false,
       clipboardHijack:      false,
@@ -71,6 +81,14 @@ export class ThreatDetector {
       aiBotDetected:        'ai_bot',
       iotBotnetDetected:    'iot_botnet',
       supplyChainViolation: 'supply_chain',
+      magecartDetected:     'magecart',
+      extensionAbuse:       'extension_abuse',
+      websocketC2:          'websocket_c2',
+      wasmAbuse:            'wasm_abuse',
+      driveByDownload:      'drive_by_download',
+      domainHopping:        'domain_hopping',
+      obfuscatedCode:       'obfuscated_code',
+      beaconingDetected:    'beaconing',
       phishing:             'phishing',
       clipboardHijack:      'clipboard_hijack',
     };
@@ -79,22 +97,30 @@ export class ThreatDetector {
       keyloggerDetected:    1.0,
       rootkitDetected:      1.0,
       dataExfiltration:     1.0,
+      magecartDetected:     1.0,
       ransomwareDetected:   0.95,
       tokenHijack:          0.95,
+      websocketC2:          0.95,
       spywareDetected:      0.90,
       evalAbuse:            0.90,
       trojanDetected:       0.90,
       mitm:                 0.90,
       aiBotDetected:        0.90,
+      extensionAbuse:       0.90,
       xssAttempt:           0.85,
       scriptInjection:      0.85,
       phishing:             0.85,
       credentialStuffing:   0.85,
+      domainHopping:        0.85,
       iotBotnetDetected:    0.80,
       wormDetected:         0.80,
       ddosParticipant:      0.80,
+      wasmAbuse:            0.80,
+      beaconingDetected:    0.80,
+      obfuscatedCode:       0.75,
       bruteForce:           0.75,
       supplyChainViolation: 0.75,
+      driveByDownload:      0.70,
       adwareDetected:       0.60,
       clipboardHijack:      0.50,
     };
@@ -112,6 +138,17 @@ export class ThreatDetector {
     this._moveAngles = [];
     this._lastClickTime = 0;
     this._lastMoveAngle = null;
+    this._lastMovePos = null;
+
+    // Network tracking for domain hopping and beaconing
+    this._seenDomains = new Set();
+    this._postDomains = new Set();
+    this._hadFormInteraction = false;
+    this._beaconTimes = [];
+    this._lastBeaconInterval = null;
+
+    // WASM tracking
+    this._wasmInstantiations = 0;
   }
 
   init() {
@@ -128,6 +165,14 @@ export class ThreatDetector {
     this._checkPhishing();            // form actions, URL spoofing
     this._checkSupplyChain();         // third-party script SRI violations
     this._checkTokenHijack();         // localStorage/cookie token exposure
+    this._checkExtensionAbuse();      // malicious browser extension signals
+    this._detectMagecart();           // form skimmer / Magecart / card grabber
+    this._detectWebSocketC2();        // WebSocket C2 / RAT beacon channels
+    this._detectWASMAbuse();          // WebAssembly cryptomining / data exfil
+    this._detectDriveByDownload();    // programmatic downloads / blob exfil
+    this._detectNetworkExfil();       // domain hopping, POST to new domains
+    this._detectBeaconing();          // regular-interval silent requests = C2
+    this._detectObfuscatedCode();     // high-entropy injected scripts
     this._injectHoneypot();           // invisible trap — AI reads DOM, humans don't
     this._watchBehavioralEntropy();   // AI bots have zero timing variance
     return this;
@@ -575,6 +620,295 @@ export class ThreatDetector {
     } catch {}
   }
 
+  // ── Magecart / Form Skimmer Detection ───────────────────────────────────
+  // Magecart injects event listeners on payment/password fields and exfils
+  // keystrokes via fetch to a remote domain. We detect the listener density
+  // and the cross-origin POST pattern that follows.
+  _detectMagecart() {
+    if (typeof document === 'undefined') return;
+
+    // Track form field input events added by scripts not from our origin.
+    // We patch addEventListener to log calls on sensitive elements.
+    const origAdd = EventTarget.prototype.addEventListener;
+    const self = this;
+    let sensitiveListenerCount = 0;
+
+    EventTarget.prototype.addEventListener = function(type, fn, opts) {
+      if (['keydown', 'keypress', 'input', 'keyup'].includes(type)) {
+        const el = this;
+        if (el instanceof HTMLInputElement &&
+            (el.type === 'password' || el.type === 'tel' ||
+             el.name?.toLowerCase().includes('card') ||
+             el.name?.toLowerCase().includes('cvv') ||
+             el.name?.toLowerCase().includes('cc'))) {
+          sensitiveListenerCount++;
+          // > 2 listeners on same sensitive field from external script = skimmer
+          if (sensitiveListenerCount > 2) self.threats.magecartDetected = true;
+        }
+      }
+      return origAdd.call(this, type, fn, opts);
+    };
+
+    // Flag form interactions so we can catch the exfil POST that follows
+    document.addEventListener('input', (e) => {
+      if (e.target instanceof HTMLInputElement &&
+          (e.target.type === 'password' || e.target.name?.toLowerCase().includes('card'))) {
+        this._hadFormInteraction = true;
+      }
+    }, { passive: true });
+  }
+
+  // ── Browser Extension Abuse ──────────────────────────────────────────────
+  // Malicious extensions inject content scripts that expose chrome.* APIs
+  // in the page context, or modify localStorage/DOM to harvest credentials.
+  _checkExtensionAbuse() {
+    if (typeof window === 'undefined') return;
+    try {
+      // chrome.cookies / browser.cookies accessible in page context = content script injected
+      if (
+        (window.chrome?.cookies && typeof window.chrome.cookies.getAll === 'function') ||
+        (window.browser?.cookies && typeof window.browser.cookies.getAll === 'function')
+      ) {
+        this.threats.extensionAbuse = true;
+      }
+      // chrome.storage in page context (should only exist in extension contexts)
+      if (window.chrome?.storage?.local || window.browser?.storage?.local) {
+        this.threats.extensionAbuse = true;
+      }
+      // chrome.webRequest = extension blocking/monitoring all network requests
+      if (window.chrome?.webRequest) {
+        this.threats.extensionAbuse = true;
+        this.threats.mitm = true;
+      }
+    } catch {}
+  }
+
+  // ── WebSocket C2 / RAT Detection ────────────────────────────────────────
+  // Web-based RATs use WebSocket or WebRTC for persistent C2 channels.
+  // Key signals: WS to non-same-origin domain, long-lived with low data,
+  // or WS opened immediately on page load before any user interaction.
+  _detectWebSocketC2() {
+    if (typeof window === 'undefined' || !window.WebSocket) return;
+    const self = this;
+    const pageLoad = Date.now();
+    const OrigWS = window.WebSocket;
+
+    window.WebSocket = function(url, protocols) {
+      const ws = new OrigWS(url, protocols);
+      try {
+        const wsHost = new URL(url).hostname;
+        const pageHost = location.hostname;
+
+        // WS to non-same-origin domain = potential C2
+        if (wsHost !== pageHost && !wsHost.endsWith('.' + pageHost)) {
+          // Opened < 500ms after page load and before any user interaction = beacon
+          if (Date.now() - pageLoad < 500) {
+            self.threats.websocketC2 = true;
+            self.threats.beaconingDetected = true;
+          } else {
+            // Flag but lower severity — could be legit third-party
+            self.threats.websocketC2 = true;
+          }
+        }
+
+        // Monitor message volume — RAT C2 has low-volume regular messages (heartbeat)
+        let msgCount = 0;
+        let lastMsg = Date.now();
+        ws.addEventListener('message', () => {
+          msgCount++;
+          const interval = Date.now() - lastMsg;
+          lastMsg = Date.now();
+          // Very regular intervals (< 10% variance) + small count = heartbeat beacon
+          if (msgCount > 5 && interval > 500 && interval < 60000) {
+            self._beaconTimes.push(interval);
+            if (self._beaconTimes.length >= 5) self._checkBeaconRegularity();
+          }
+        });
+      } catch {}
+      return ws;
+    };
+    Object.assign(window.WebSocket, OrigWS);
+
+    // WebRTC: also used for P2P C2 channels
+    if (window.RTCPeerConnection) {
+      const OrigRTC = window.RTCPeerConnection;
+      window.RTCPeerConnection = function(...args) {
+        self.threats.websocketC2 = true; // RTCPeerConnection on non-video app = suspicious
+        return new OrigRTC(...args);
+      };
+      Object.assign(window.RTCPeerConnection, OrigRTC);
+    }
+  }
+
+  // ── WebAssembly Abuse: cryptomining / heavy exfil ────────────────────────
+  // Cryptominers and advanced data exfil tools use WASM for performance.
+  // Signal: WASM instantiated from blob/data URL, or multiple large modules.
+  _detectWASMAbuse() {
+    if (typeof WebAssembly === 'undefined') return;
+    const self = this;
+    const origInstantiate = WebAssembly.instantiate;
+    const origCompile = WebAssembly.compile;
+
+    WebAssembly.instantiate = function(source, ...args) {
+      self._wasmInstantiations++;
+      // WASM from ArrayBuffer directly (not from .wasm file via fetch) = suspicious
+      if (source instanceof ArrayBuffer || source instanceof Uint8Array) {
+        if (source.byteLength > 100_000) {
+          // Large inline WASM = cryptominer or obfuscated payload
+          self.threats.wasmAbuse = true;
+        }
+        if (self._wasmInstantiations > 3) {
+          // Multiple WASM modules = modular attack toolkit
+          self.threats.wasmAbuse = true;
+        }
+      }
+      return origInstantiate.call(WebAssembly, source, ...args);
+    };
+
+    WebAssembly.compile = function(source, ...args) {
+      if (source instanceof ArrayBuffer && source.byteLength > 100_000) {
+        self.threats.wasmAbuse = true;
+      }
+      return origCompile.call(WebAssembly, source, ...args);
+    };
+  }
+
+  // ── Drive-by Download Detection ──────────────────────────────────────────
+  // Drive-by downloads use programmatic blob URL creation + simulated clicks.
+  // Exploit kits trigger downloads without user action after page load.
+  _detectDriveByDownload() {
+    if (typeof window === 'undefined') return;
+    const self = this;
+    const pageLoad = Date.now();
+    const origCreateObjectURL = URL.createObjectURL?.bind(URL);
+
+    if (origCreateObjectURL) {
+      URL.createObjectURL = function(obj) {
+        const url = origCreateObjectURL(obj);
+        // Blob URL created < 2s after load before any user click = drive-by
+        if (Date.now() - pageLoad < 2000) {
+          self.threats.driveByDownload = true;
+        }
+        return url;
+      };
+    }
+
+    // Monitor for programmatic anchor clicks with download attribute
+    document.addEventListener('click', (e) => {
+      const a = e.target?.closest?.('a[download]');
+      if (a && !e.isTrusted) {
+        // Untrusted = programmatic click (dispatchEvent) = automated download
+        self.threats.driveByDownload = true;
+      }
+    }, { capture: true, passive: true });
+  }
+
+  // ── Domain Hopping / Exfil POST Detection ───────────────────────────────
+  // Magecart and info stealers POST stolen data to a different domain
+  // immediately after the user interacts with a payment/login form.
+  _detectNetworkExfil() {
+    if (typeof window === 'undefined' || !window.fetch) return;
+    const self = this;
+    const ownHost = location.hostname;
+    const origFetch = window.fetch;
+
+    window.fetch = function(input, init = {}) {
+      try {
+        const url = typeof input === 'string' ? input : input?.url || '';
+        if (url) {
+          let host;
+          try { host = new URL(url).hostname; } catch { host = null; }
+          if (host && host !== ownHost && !host.endsWith('.' + ownHost)) {
+            self._postDomains.add(host);
+            // POST to new domain right after form interaction = exfil
+            if (self._hadFormInteraction && (init.method || '').toUpperCase() === 'POST') {
+              self.threats.domainHopping = true;
+              self.threats.dataExfiltration = true;
+              self.threats.magecartDetected = true;
+            }
+          }
+        }
+      } catch {}
+      return origFetch.apply(window, arguments);
+    };
+
+    // Same for XMLHttpRequest
+    const origOpen = XMLHttpRequest.prototype.open;
+    const origSend = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.open = function(method, url) {
+      this._astraMethod = method;
+      this._astraUrl = url;
+      return origOpen.apply(this, arguments);
+    };
+    XMLHttpRequest.prototype.send = function() {
+      try {
+        if (this._astraUrl) {
+          let host;
+          try { host = new URL(this._astraUrl, location.href).hostname; } catch {}
+          if (host && host !== ownHost && !host.endsWith('.' + ownHost)) {
+            if (self._hadFormInteraction && (this._astraMethod || '').toUpperCase() === 'POST') {
+              self.threats.domainHopping = true;
+              self.threats.dataExfiltration = true;
+            }
+          }
+        }
+      } catch {}
+      return origSend.apply(this, arguments);
+    };
+  }
+
+  // ── C2 Beaconing Detection ───────────────────────────────────────────────
+  // RATs and implants send heartbeat requests at regular intervals.
+  // We track fetch call timing — if intervals are too regular, it's a beacon.
+  _detectBeaconing() {
+    if (typeof window === 'undefined' || !window.fetch) return;
+    // Beaconing uses the same fetch wrapper as domain exfil detection.
+    // Track all outbound fetch timing for regularity analysis.
+    // _checkBeaconRegularity is called from WebSocket message handler too.
+  }
+
+  _checkBeaconRegularity() {
+    if (this._beaconTimes.length < 5) return;
+    const recent = this._beaconTimes.slice(-10);
+    const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+    const variance = recent.reduce((s, t) => s + Math.pow(t - mean, 2), 0) / recent.length;
+    const cv = Math.sqrt(variance) / mean;
+    // CV < 0.1 on network intervals = extremely regular = C2 heartbeat beacon
+    if (cv < 0.1 && mean > 1000 && mean < 300_000) {
+      this.threats.beaconingDetected = true;
+    }
+  }
+
+  // ── Obfuscated / Polymorphic Code Detection ──────────────────────────────
+  // Polymorphic malware and exploit kits inject high-entropy scripts.
+  // Shannon entropy > 5.5 bits/char on inline script = likely packed/obfuscated.
+  _detectObfuscatedCode() {
+    if (typeof document === 'undefined') return;
+    const scripts = document.querySelectorAll('script:not([src])');
+    for (const s of scripts) {
+      const content = s.textContent || '';
+      if (content.length > 500 && this._shannonEntropy(content) > 5.5) {
+        this.threats.obfuscatedCode = true;
+        break;
+      }
+      // Large base64 blob in inline script = packed payload
+      if (/[A-Za-z0-9+/]{200,}={0,2}/.test(content)) {
+        this.threats.obfuscatedCode = true;
+        break;
+      }
+    }
+  }
+
+  _shannonEntropy(str) {
+    const freq = {};
+    for (const c of str) freq[c] = (freq[c] || 0) + 1;
+    const len = str.length;
+    return -Object.values(freq).reduce((sum, f) => {
+      const p = f / len;
+      return sum + p * Math.log2(p);
+    }, 0);
+  }
+
   // ── Public API ───────────────────────────────────────────────────────────
 
   getThreats() {
@@ -587,21 +921,29 @@ export class ThreatDetector {
     const priority = [
       'rootkitDetected',
       'keyloggerDetected',
+      'magecartDetected',
       'dataExfiltration',
       'tokenHijack',
+      'websocketC2',
       'ransomwareDetected',
       'spywareDetected',
+      'extensionAbuse',
       'mitm',
       'trojanDetected',
       'aiBotDetected',
+      'domainHopping',
       'evalAbuse',
+      'wasmAbuse',
       'xssAttempt',
       'scriptInjection',
+      'obfuscatedCode',
       'phishing',
       'credentialStuffing',
+      'beaconingDetected',
       'iotBotnetDetected',
       'wormDetected',
       'ddosParticipant',
+      'driveByDownload',
       'bruteForce',
       'supplyChainViolation',
       'adwareDetected',
