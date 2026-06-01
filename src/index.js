@@ -6,6 +6,9 @@
 // SDK — the recommended way to use ASTRA
 export { Astra } from './sdk/Astra.js';
 
+// WAF / input validation
+export { InputGuard } from './core/InputGuard.js';
+
 // Legacy browser SDK
 export { ASTRAShield } from './core/Shield.js';
 export { Session } from './core/Session.js';
