@@ -10,6 +10,8 @@ import { ChallengeManager } from '../challenges/ChallengeManager.js';
 import { Mutator } from '../mutation/Mutator.js';
 import { AccessibilityManager } from '../accessibility/AccessibilityManager.js';
 import { HappinessTracker } from '../metrics/HappinessTracker.js';
+import { ProofOfWork } from './ProofOfWork.js';
+import { MLClient } from './MLClient.js';
 
 class ASTRAShield {
   constructor(options = {}) {
@@ -34,6 +36,14 @@ class ASTRAShield {
     this.happiness = new HappinessTracker(this.options);
     this.tierEngine = new TierEngine(this.options);
     this.challengeManager = new ChallengeManager(this.options, this.mutator, this.accessibility);
+
+    // Server-verified attestation + adaptive scoring (enabled when an appToken
+    // is configured; opt out with serverVerify:false / adaptiveScoring:false)
+    this.serverVerify = this.options.serverVerify !== false && !!this.options.appToken;
+    this.adaptiveScoring = this.options.adaptiveScoring !== false && !!this.options.appToken;
+    this.proofOfWork = this.serverVerify ? new ProofOfWork(this.options) : null;
+    this.mlClient = this.adaptiveScoring ? new MLClient(this.options) : null;
+    this.lastAttestation = null;
 
     // Event listeners
     this.listeners = {
@@ -238,6 +248,9 @@ class ASTRAShield {
 
     this.log(`Protecting action: ${action}`);
 
+    // Refresh adaptive (per-app ML) anomaly score before scoring — best effort
+    await this._refreshAdaptiveScore();
+
     // Get current OOS score
     const oosScore = await this.detector.getOOSScore();
     const tier = this.tierEngine.getTierForScore(oosScore);
@@ -324,22 +337,47 @@ class ASTRAShield {
         if (result.success) {
           this.consecutiveFailures = 0;
           this._adjustOOSFromChallenge(result);
-
-          this.emit('success', {
-            tier: result.tier,
-            type: result.type,
-            duration: completionTime
-          });
-          this.sendTelemetry('passed', { tier: String(result.tier), challenge: result.type });
-
-          // Update session trust
           this.session.increaseTrust();
-          resolve({
-            success: true,
-            tier: result.tier,
-            type: result.type,
-            duration: completionTime
-          });
+
+          // Cryptographic attestation: solve a server-issued proof-of-work and
+          // obtain a signed token proving a human passed. The app backend can
+          // verify it via /api/verify/check — a faked client pass has no valid
+          // signature. Falls back gracefully if server-verify is disabled.
+          (async () => {
+            let attestation = null;
+            if (this.proofOfWork) {
+              try {
+                const oos = await this.detector.getOOSScore();
+                const att = await this.proofOfWork.attest({
+                  oosScore: oos,
+                  challengePassed: true,
+                  challengeType: result.type,
+                  features: this.detector.getFeatureVector(),
+                });
+                if (att && att.verified) {
+                  attestation = att.attestation;
+                  this.lastAttestation = att.attestation;
+                }
+              } catch { /* non-fatal */ }
+            }
+
+            this.emit('success', {
+              tier: result.tier,
+              type: result.type,
+              duration: completionTime,
+              attestation,
+              verified: !!attestation,
+            });
+            this.sendTelemetry('passed', { tier: String(result.tier), challenge: result.type });
+            resolve({
+              success: true,
+              tier: result.tier,
+              type: result.type,
+              duration: completionTime,
+              attestation,
+              verified: !!attestation,
+            });
+          })();
         } else {
           this.consecutiveFailures += 1;
 
@@ -398,6 +436,19 @@ class ASTRAShield {
 
     const s = this.detector.scores;
     s.sessionAnomaly = Math.max(0, Math.min(1, (s.sessionAnomaly || 0) + delta));
+  }
+
+  /**
+   * Pull the adaptive per-app anomaly score from the server and fold it into
+   * the detector. Throttled inside MLClient; never throws.
+   */
+  async _refreshAdaptiveScore() {
+    if (!this.mlClient || !this.detector) return;
+    try {
+      const features = this.detector.getFeatureVector();
+      const score = await this.mlClient.score(features);
+      this.detector.scores.adaptiveAnomaly = score;
+    } catch { /* non-fatal */ }
   }
 
   /**

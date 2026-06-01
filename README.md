@@ -175,7 +175,60 @@ shield.on('blocked', ({ reason, status, retryIn, remainingAttempts }) => {
 **Human path:** fail → warned with `remainingAttempts` → pass any challenge → counter resets → never locked.  
 **Bot path:** fail 3 consecutive → locked 10min → fails again immediately → re-locked.
 
+## Server-Verified Mode (v3)
+
+When an `appToken` is set, a passed challenge is **cryptographically attested**.
+The SDK solves a server-issued proof-of-work and receives a signed token; your
+backend verifies it so a faked client-side "pass" carries no valid signature.
+
+```javascript
+const shield = new ASTRAShield({ appToken: 'your-token' });
+
+shield.on('success', ({ verified, attestation }) => {
+  if (verified) {
+    // send `attestation` to your backend with the protected request
+    fetch('/checkout', { headers: { 'X-Astra-Attestation': attestation } });
+  }
+});
+```
+
+Backend verifies the attestation (signature is server-only, cannot be forged):
+
+```bash
+curl -X POST https://astra-shield-site.vercel.app/api/verify/check \
+  -H "X-App-Token: $ASTRA_APP_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"attestation":"<token-from-client>"}'
+# → { "valid": true, "appId": "...", "oos": 0.4, "challenge": "rhythm" }
+```
+
+**Adaptive scoring:** each app builds its own statistical model of "normal" from
+verified-human sessions (Welford online stats per feature) and flags deviation —
+no hand-tuned thresholds. **WAF:** `InputGuard` (client) + `/api/apps/validate`
+(server) block SQLi/NoSQLi/XSS/command-injection. **TLS fingerprinting,**
+**cross-app community blocklist,** and **Upstash-backed cross-instance state**
+round out the v3 hardening. See `ENV.md` for configuration.
+
 ## Changelog
+
+### 3.0.0
+- **Server-verified attestation** — proof-of-work + HMAC-signed JWT; passed
+  events are now cryptographically trustworthy (`/api/verify/nonce|attest|check`)
+- **Adaptive per-app anomaly model** — Welford online stats trained on
+  verified-human sessions; one-class z-score anomaly detection (`/api/ml/score`)
+- **Cross-app threat intel** — opt-in anonymized shared blocklist; high-confidence
+  blocks from any app protect all apps
+- **JA3/JA4 TLS fingerprinting** — network-layer bot signal via Vercel Firewall headers
+- **Upstash Redis state** — cross-instance rate limits, nonce replay prevention,
+  subnet-block cache, beaconing trackers (in-process fallback when unconfigured)
+- **InputGuard WAF** — SQLi/NoSQLi/XSS/command/LDAP/SSTI detection, client + server
+- **Deep fingerprinting** (`FingerprintEngine`) — canvas noise, AudioContext,
+  WebGL renderer, timing precision, screen geometry consistency
+- **Script behavior monitor** (`ScriptMonitor`) — Magecart/skimmer, sendBeacon
+  exfil, field-harvesting, worker-flood, network-drift detection
+- **Per-app domain allowlist** — block stolen tokens used off approved origins
+- **AbuseIPDB** second reputation feed + shadow-ban mode + adaptive subnet thresholds
+- New exports: `InputGuard`, `FingerprintEngine`, `ScriptMonitor`, `ProofOfWork`, `MLClient`
 
 ### 2.4.1
 - Lockout now tracks **consecutive** failures only — passing any challenge resets counter to 0

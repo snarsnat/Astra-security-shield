@@ -7,6 +7,8 @@ import { ThreatDetector } from './ThreatDetector.js';
 import { FingerprintEngine } from './FingerprintEngine.js';
 import { ScriptMonitor } from './ScriptMonitor.js';
 
+const round3 = (n) => Math.round((Number(n) || 0) * 1000) / 1000;
+
 export class Detector {
   constructor(options = {}) {
     this.options = options;
@@ -47,6 +49,9 @@ export class Detector {
       headlessAnomaly: 0,
       silenceAnomaly: 0,
       threatAnomaly: 0,
+      scriptAnomaly: 0,
+      fingerprintScore: 0,
+      adaptiveAnomaly: 0,
     };
 
     this.threatDetector    = new ThreatDetector();
@@ -590,6 +595,8 @@ export class Detector {
     // Script behavior drift and deep fingerprinting are also additive
     score += (this.scores.scriptAnomaly    || 0) * 0.70;
     score += (this.scores.fingerprintScore || 0) * 0.60;
+    // Adaptive per-app anomaly model (learned from verified-human sessions)
+    score += (this.scores.adaptiveAnomaly  || 0) * 0.50;
 
     // Apply session trust modifier
     if (this.session) {
@@ -620,6 +627,42 @@ export class Detector {
   }
 
   /**
+   * Numeric feature vector for the adaptive anomaly model.
+   * Mix of per-signal scores and raw behavioral volumes — the server learns
+   * each app's "normal" distribution over these from verified-human sessions.
+   */
+  getFeatureVector() {
+    this.performAnalysis();
+    const clickCV = this._coeffVar(this.clickTimings);
+    const keyCV   = this._coeffVar(this.keystrokeTimings);
+    return {
+      mouseAnomaly:    round3(this.scores.mouseAnomaly),
+      clickAnomaly:    round3(this.scores.clickAnomaly),
+      scrollAnomaly:   round3(this.scores.scrollAnomaly),
+      keyboardAnomaly: round3(this.scores.keyboardAnomaly),
+      touchAnomaly:    round3(this.scores.touchAnomaly),
+      sessionAnomaly:  round3(this.scores.sessionAnomaly),
+      silenceAnomaly:  round3(this.scores.silenceAnomaly),
+      headlessAnomaly: round3(this.scores.headlessAnomaly),
+      fingerprintScore: round3(this.scores.fingerprintScore || 0),
+      clickCV:   round3(clickCV),
+      keystrokeCV: round3(keyCV),
+      mouseCount: this.data.mouseMovements.length,
+      clickCount: this.data.clicks.length,
+      keyCount:   this.data.keystrokes.length,
+      scrollCount: this.data.scrolls.length,
+    };
+  }
+
+  _coeffVar(arr) {
+    if (!arr || arr.length < 3) return 0;
+    const mean = arr.reduce((a, b) => a + b, 0) / arr.length;
+    if (mean === 0) return 0;
+    const variance = arr.reduce((s, v) => s + (v - mean) ** 2, 0) / arr.length;
+    return Math.sqrt(variance) / mean;
+  }
+
+  /**
    * Reset analysis data
    */
   reset() {
@@ -644,6 +687,7 @@ export class Detector {
       threatAnomaly:    0,
       scriptAnomaly:    0,
       fingerprintScore: 0,
+      adaptiveAnomaly:  0,
     };
     this.initTime = Date.now();
 

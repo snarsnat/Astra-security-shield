@@ -13,6 +13,10 @@ export { InputGuard } from './core/InputGuard.js';
 export { FingerprintEngine } from './core/FingerprintEngine.js';
 export { ScriptMonitor }     from './core/ScriptMonitor.js';
 
+// Server-verified attestation (proof-of-work) + adaptive anomaly scoring
+export { ProofOfWork } from './core/ProofOfWork.js';
+export { MLClient }    from './core/MLClient.js';
+
 // Legacy browser SDK
 export { ASTRAShield } from './core/Shield.js';
 export { Session } from './core/Session.js';
