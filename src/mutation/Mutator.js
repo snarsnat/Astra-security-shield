@@ -33,11 +33,54 @@ export class Mutator {
   }
 
   /**
-   * Generate seed based on current hour
+   * Generate the rotation seed.
+   *
+   * Stable within a mutation period (so the active challenge set is consistent
+   * for an hour) but NOT reproducible from the clock alone: the time bucket is
+   * mixed with a per-install secret salt (random, persisted) plus the appToken.
+   * Without the salt an attacker reading this source cannot predict which
+   * challenge appears when.
    */
   generateSeed() {
     const now = new Date();
-    return now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate() + now.getHours();
+    const period = now.getFullYear() * 1000000 +
+                   (now.getMonth() + 1) * 10000 +
+                   now.getDate() * 100 +
+                   now.getHours();
+    return this._hashStr(`${period}:${this._secretSalt()}`) >>> 0;
+  }
+
+  // Per-install secret: appToken (if any) + a random salt persisted once.
+  _secretSalt() {
+    if (this._salt) return this._salt;
+    let salt = this.options.appToken || '';
+    try {
+      const key = (this.options.storagePrefix || 'astra_') + 'mut_salt';
+      if (typeof localStorage !== 'undefined') {
+        let s = localStorage.getItem(key);
+        if (!s) { s = this._randomHex(16); localStorage.setItem(key, s); }
+        salt += ':' + s;
+      } else {
+        salt += ':' + this._randomHex(16); // non-browser: ephemeral per process
+      }
+    } catch { salt += ':' + this._randomHex(16); }
+    this._salt = salt || 'astra-default';
+    return this._salt;
+  }
+
+  _randomHex(n) {
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      const a = new Uint8Array(n);
+      crypto.getRandomValues(a);
+      return Array.from(a, b => b.toString(16).padStart(2, '0')).join('');
+    }
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+
+  _hashStr(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) & 0x7fffffff;
+    return h;
   }
 
   /**

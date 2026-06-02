@@ -138,19 +138,32 @@ Real-time analytics at [astra-shield-site.vercel.app](https://astra-shield-site.
 
 Sign in with GitHub or Google — apps persist across sessions and devices.
 
-## Architecture
+## Architecture — what runs where
+
+Astra has three distinct pieces. Knowing which one delivers a feature matters,
+because their guarantees differ:
+
+| Component | What it is | Where the code lives |
+|---|---|---|
+| **Client SDK** (`astra-shield`) | Behavioral scoring, fingerprinting, challenges, `InputGuard` WAF, proof-of-work client | this package, `src/` |
+| **Hosted service** | Telemetry ingest, IP reputation, geo, network blocking, **`/api/verify/*` attestation**, **`/api/ml/score`** adaptive model, **threat-intel blocklist**, JA4 — backed by Supabase + (optional) Upstash | [`astra-shield-site`](https://github.com/snarsnat/astra-shield-site), deployed to `astra-shield-site.vercel.app` |
+| **Bundled self-host server** | A lightweight reference Express server (`server/`) — WAF-lite, in-process rate limiting, static-threshold scoring. Good for local/single-instance use | this package, `server/` |
 
 ```
 Browser (SDK)
   └─ behavioral signals → OOS score → tier → protect()
-       └─ telemetry → POST /api/events/ingest (Vercel)
-            ├─ IP reputation check (ip-api.com)
-            ├─ INSERT events (Supabase)
-            └─ increment daily_stats (atomic RPC)
-
-Dashboard (astra-shield-site.vercel.app)
-  └─ GET /api/apps/stats → Supabase → charts
+       ├─ challenge passed → solve PoW → POST /api/verify/attest → signed attestation
+       └─ telemetry → POST /api/events/ingest (hosted service)
+            ├─ IP reputation (ip-api.com [+ AbuseIPDB if configured])
+            ├─ JA4 TLS fingerprint (if Vercel Firewall enabled)
+            ├─ community threat-intel check
+            └─ INSERT events / daily_stats (Supabase)
 ```
+
+> The **v3 server features** (attestation, adaptive model, threat intel, Redis
+> state) live in the **hosted service**, not the bundled `server/`. If you
+> self-host, you get the reference server unless you deploy `astra-shield-site`
+> yourself. See [ENV.md](ENV.md).
 
 ## Bot Lockout
 
@@ -203,13 +216,62 @@ curl -X POST https://astra-shield-site.vercel.app/api/verify/check \
 ```
 
 **Adaptive scoring:** each app builds its own statistical model of "normal" from
-verified-human sessions (Welford online stats per feature) and flags deviation —
-no hand-tuned thresholds. **WAF:** `InputGuard` (client) + `/api/apps/validate`
-(server) block SQLi/NoSQLi/XSS/command-injection. **TLS fingerprinting,**
-**cross-app community blocklist,** and **Upstash-backed cross-instance state**
-round out the v3 hardening. See `ENV.md` for configuration.
+verified-human sessions (Welford online stats per feature, served by the hosted
+`/api/ml/score`) and flags deviation. **WAF:** `InputGuard` (client) +
+`/api/apps/validate` (hosted) block SQLi/NoSQLi/XSS/command-injection, decoding
+URL/HTML-encoded payloads before matching. **TLS fingerprinting,** **cross-app
+community blocklist,** and **Upstash-backed cross-instance state** round out the
+v3 hardening. All of these are **optional and degrade gracefully** — without
+`UPSTASH_*` state falls back to per-instance memory, without `ABUSEIPDB_API_KEY`
+only ip-api is used, and JA4 requires Vercel Firewall. See [ENV.md](ENV.md).
+
+## Threat Model & Limitations
+
+Astra is honest about what it is: **strong, low-friction protection against
+commodity automation, scrapers, and credential abuse for indie/SMB apps** — not
+an enterprise WAF or a guarantee against a determined, funded attacker.
+
+- **Client-side signals are advisory, not proof.** Everything the browser
+  reports (behavioral data, fingerprints, challenge timing) can be spoofed by a
+  skilled attacker using stealth automation (e.g. `puppeteer-extra-plugin-stealth`
+  with realistic input simulation). These signals raise the cost and catch the
+  ~95% of real-world bots that don't bother — they don't stop everyone.
+- **Trust the attestation, not the event.** A client-emitted `passed` is not
+  authoritative. For anything that matters, verify the **server-signed
+  attestation** (`/api/verify/check`) on your backend. The proof-of-work raises
+  bot-farm cost; it is a throttle, not an impenetrable wall.
+- **The adaptive model is statistical, not a deep ML model.** It's a per-app
+  one-class anomaly detector (z-scores over Welford online stats). It adapts and
+  has no training pipeline to maintain, but it is not a neural net and is cold
+  until an app accumulates verified-human sessions.
+- **Cross-app threat intel is only as strong as adoption** — valuable at scale,
+  near-empty on day one.
+- **The bundled `server/` keeps state in-process.** Behind PM2 cluster mode or a
+  multi-instance load balancer, its rate limits/blocklists are per-worker and
+  bypassable by retrying. For multi-instance deployments use the hosted service
+  or wire the Upstash adapter. The hosted service already does this.
+- **Bot detection runs in the page.** A site with an existing XSS hole can tamper
+  with the challenge UI; Astra is a layer, not a substitute for fixing app-level
+  vulnerabilities.
 
 ## Changelog
+
+### 3.0.1
+- **Accuracy pass** — README now states which features live in the SDK vs the
+  hosted service vs the bundled reference server, plus a Threat Model section
+- **WAF decode fix** — `InputGuard` + hosted `/api/apps/validate` now decode
+  URL/double-URL/HTML-entity payloads before matching (`%3Cscript%3E` no longer slips through)
+- **NoSQLi rule fix** — catches JSON-style quoted operator keys (`{"$gt": …}`)
+- **Trust is earned, not gifted** — sessions start untrusted (was `1.0`); wiping
+  localStorage can no longer farm a trust discount; trust decays with idle time
+- **Unpredictable challenge rotation** — Mutator seed mixes a persisted per-install
+  random salt + appToken (was a pure function of the clock)
+- **Deprecation fix** — `crypto.js` base64 uses `TextEncoder`/`TextDecoder` (not `escape`/`unescape`)
+- **Hygiene** — removed dead duplicate `astra/` tree, 0-byte junk files, and unused
+  deps (`blake3`, `crypto-js`, `simhash-js`, `useragent`); post-install no longer
+  swallows errors silently; license stated correctly (Apache-2.0 + Commons Clause)
+- **Tests** — real `node --test` suite for WAF patterns (incl. encoded bypass),
+  mutator unpredictability, session trust, crypto round-trip, detector scoring
 
 ### 3.0.0
 - **Server-verified attestation** — proof-of-work + HMAC-signed JWT; passed
@@ -272,4 +334,7 @@ round out the v3 hardening. See `ENV.md` for configuration.
 
 ## License
 
-MIT © [Snarsnat](https://github.com/snarsnat)
+Apache-2.0 **with the Commons Clause** © [Snarsnat](https://github.com/snarsnat) — see [LICENSE](LICENSE).
+You may use, modify, and self-host Astra freely; the Commons Clause forbids
+selling it (or a hosted service whose value derives substantially from it)
+without a separate agreement.

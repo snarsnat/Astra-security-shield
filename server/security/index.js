@@ -69,10 +69,34 @@ function timingSafeStringEqual(a, b) {
   return crypto.timingSafeEqual(aBuf, bBuf);
 }
 
+// Decoded variants of a value — defeats URL/double-URL/HTML-entity-encoded
+// payloads that would otherwise pass the literal regex match.
+function decodeCandidates(str) {
+  const out = new Set([str]);
+  let cur = str;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const dec = decodeURIComponent(cur.replace(/\+/g, ' '));
+      if (dec === cur) break;
+      out.add(dec);
+      cur = dec;
+    } catch { break; }
+  }
+  try {
+    const html = str
+      .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+    if (html !== str) out.add(html);
+  } catch {}
+  return out;
+}
+
 function containsSuspiciousPattern(str) {
   if (!str || typeof str !== 'string') return null;
-  for (const re of SUSPICIOUS_PATTERNS) {
-    if (re.test(str)) return re.source;
+  for (const candidate of decodeCandidates(str)) {
+    for (const re of SUSPICIOUS_PATTERNS) {
+      if (re.test(candidate)) return re.source;
+    }
   }
   return null;
 }

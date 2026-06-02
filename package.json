@@ -1,6 +1,6 @@
 {
   "name": "astra-shield",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Invisible bot detection & human verification — the best security is the security you never notice",
   "type": "module",
   "main": "src/index.js",
@@ -24,6 +24,7 @@
     "astra-setup.js",
     "astra.config.json",
     "README.md",
+    "ENV.md",
     "LICENSE"
   ],
   "scripts": {
@@ -33,8 +34,9 @@
     "start": "node cli/astra.js dashboard start",
     "stop": "node cli/astra.js dashboard stop",
     "status": "node cli/astra.js dashboard status",
-    "test": "node -e \"import('./src/index.js').then(m => { if (!m.ASTRAShield) throw new Error('missing ASTRAShield export'); console.log('ok: exports load'); })\"",
-    "postinstall": "node -e \"try{import('./postinstall.js')}catch(e){}\" || true",
+    "test": "node --test test/*.test.js",
+    "test:exports": "node -e \"import('./src/index.js').then(m => { if (!m.ASTRAShield) throw new Error('missing ASTRAShield export'); console.log('ok: exports load'); })\"",
+    "postinstall": "node postinstall.js",
     "prepublishOnly": "npm test"
   },
   "keywords": [
@@ -66,18 +68,14 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "blake3": "^2.1.7",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "crypto-js": "^4.2.0",
     "express": "^4.18.2",
     "geoip-lite": "^1.4.10",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
     "nanoid": "^5.0.4",
     "open": "^10.1.0",
-    "simhash-js": "^1.0.0",
-    "useragent": "^2.3.0",
     "zod": "^3.22.4"
   },
   "directories": {

@@ -12,7 +12,10 @@ export class Session {
     this.id = null;
     this.createdAt = null;
     this.lastActivity = null;
-    this.trust = 1.0; // Start with full trust
+    // Trust is EARNED, not gifted. New/unproven sessions start untrusted (0) so
+    // wiping localStorage or reloading cannot farm a trust discount — it resets
+    // you to untrusted. Trust rises via increaseTrust() on verified behavior.
+    this.trust = 0.0;
     this.metadata = {};
 
     this.storage = {
@@ -48,18 +51,21 @@ export class Session {
     const stored = this.storage.get('session');
 
     if (stored && this.isValid(stored)) {
-      // Restore existing session
+      // Restore existing session — trust persists with the proven session, but
+      // decays with idle time so a long-dormant tab doesn't keep a high score.
       this.id = stored.id;
       this.createdAt = stored.createdAt;
       this.lastActivity = Date.now();
-      this.trust = stored.trust || 1.0;
+      const idleMin = (Date.now() - (stored.lastActivity || stored.createdAt)) / 60000;
+      const decay = Math.min(0.5, idleMin * 0.02); // up to -0.5 over ~25min idle
+      this.trust = Math.max(0, (stored.trust ?? 0) - decay);
       this.metadata = stored.metadata || {};
     } else {
-      // Create new session
+      // New session — untrusted until it earns trust through verified behavior.
       this.id = this.generateId();
       this.createdAt = Date.now();
       this.lastActivity = Date.now();
-      this.trust = 1.0;
+      this.trust = 0.0;
       this.metadata = this.getInitialMetadata();
     }
 
@@ -241,7 +247,7 @@ export class Session {
     this.storage.remove('session');
     this.id = null;
     this.createdAt = null;
-    this.trust = 1.0;
+    this.trust = 0.0;
     this.metadata = {};
   }
 }

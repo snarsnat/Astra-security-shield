@@ -38,14 +38,18 @@ export class InputGuard {
   }
 
   // Scan a string value. Returns { threat, type, pattern, value }.
+  // Tests the raw value AND decoded variants so URL/HTML-encoded payloads
+  // (e.g. %3Cscript%3E, &#x3c;script&#x3e;) can't slip past the regexes.
   scan(value) {
     if (!value || typeof value !== 'string') return { threat: false };
     const v = value.trim();
     if (!v) return { threat: false };
 
-    for (const rule of RULES) {
-      if (rule.pattern.test(v)) {
-        return { threat: true, type: rule.type, label: rule.label, value: v.slice(0, 120) };
+    for (const candidate of decodeCandidates(v)) {
+      for (const rule of RULES) {
+        if (rule.pattern.test(candidate)) {
+          return { threat: true, type: rule.type, label: rule.label, value: v.slice(0, 120) };
+        }
       }
     }
     return { threat: false };
@@ -67,6 +71,29 @@ export class InputGuard {
       keepalive: true,
     }).catch(() => {});
   }
+}
+
+// Produce decoded variants of a value so encoded payloads are caught.
+function decodeCandidates(v) {
+  const out = new Set([v]);
+  // URL-decode up to twice (double-encoding is a common WAF bypass)
+  let cur = v;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const dec = decodeURIComponent(cur.replace(/\+/g, ' '));
+      if (dec === cur) break;
+      out.add(dec);
+      cur = dec;
+    } catch { break; }
+  }
+  // HTML entity decode (numeric + hex), covers &#x3c; / &#60; style encoding
+  try {
+    const html = v
+      .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)));
+    if (html !== v) out.add(html);
+  } catch {}
+  return [...out];
 }
 
 // ── Detection rules ──────────────────────────────────────────────────────────
@@ -93,7 +120,8 @@ const RULES = [
   {
     type: 'nosqli',
     label: 'NoSQL Injection',
-    pattern: /(\$where|\$gt|\$lt|\$gte|\$lte|\$ne|\$in|\$nin|\$or|\$and|\$regex|\$exists|\$type)\s*[:=]/,
+    // Allow an optional closing quote/bracket so JSON-style `{"$gt": ...}` is caught
+    pattern: /(\$where|\$gt|\$lt|\$gte|\$lte|\$ne|\$in|\$nin|\$or|\$and|\$regex|\$exists|\$type)["'\]]?\s*[:=]/,
   },
   {
     type: 'nosqli',
