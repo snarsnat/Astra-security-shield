@@ -21,14 +21,12 @@ import morgan from 'morgan';
 import crypto from 'crypto';
 
 import { createAPIRoutes } from './routes/api.js';
-import { createDashboardRoutes } from './routes/dashboard.js';
 import { BotDetectionService } from './services/BotDetectionService.js';
 import { FingerprintService } from './services/FingerprintService.js';
 import { MLAnalysisService } from './services/MLAnalysisService.js';
 import { ThreatIntelligenceService } from './services/ThreatIntelligenceService.js';
 import { SessionService } from './services/SessionService.js';
 import { ChallengeService } from './services/ChallengeService.js';
-import { DashboardService } from './services/DashboardService.js';
 import APIKeyService from './services/APIKeyService.js';
 import { requireAPIKey } from './middleware/auth.js';
 
@@ -263,7 +261,6 @@ const services = {
   threatIntel: new ThreatIntelligenceService(),
   session: sessionService,
   challenge: new ChallengeService({ sessionService: null }),
-  dashboard: new DashboardService({ sessionService }),
 };
 
 services.challenge.sessionService = services.session;
@@ -347,11 +344,9 @@ app.use('/api', (req, res, next) => {
 });
 app.use('/api', apiRoutes);
 
-const dashboardRoutes = createDashboardRoutes(services.dashboard);
-app.use('/api/dashboards', dashboardRoutes);
-
+// Dashboard is hosted at astrasec.xyz — redirect any legacy local calls
 app.use('/api/dashboard', (req, res) => {
-  res.redirect(301, req.originalUrl.replace('/api/dashboard', '/api/dashboards'));
+  res.redirect(301, 'https://astrasec.xyz/dashboard');
 });
 
 // ─── Live Stats Endpoint (auth-gated in production) ──────────────────────────
@@ -425,7 +420,6 @@ app.get('/health', (req, res) => {
     version: '2.1.0',
     uptime: process.uptime(),
     services: Object.keys(services),
-    dashboards: services.dashboard.dashboards.size,
     blockedIPs: ipBlocklist.size,
     sseClients: sseClients.size,
   });

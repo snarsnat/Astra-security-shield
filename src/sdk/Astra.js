@@ -381,60 +381,6 @@ class Astra {
     }
   }
 
-  // ─── Key Management ───────────────────────────────────────
-
-  /**
-   * Generate a new API key for an app (requires admin key)
-   * @param {Object} options
-   * @param {string} options.appName - Name of the app
-   * @param {string} [options.description] - Description
-   * @param {string[]} [options.permissions] - Permissions array
-   * @param {number} [options.rateLimit] - Rate limit per minute
-   * @param {string} [options.adminKey] - Admin API key (defaults to current key)
-   * @returns {Promise<{key: string, metadata: Object}>}
-   */
-  async generateKey({ appName, description, permissions, rateLimit, adminKey }) {
-    const key = adminKey || this.apiKey;
-    return this._request('POST', '/api/keys/generate', {
-      appName,
-      description,
-      permissions,
-      rateLimit
-    }, key);
-  }
-
-  /**
-   * List API keys
-   * @param {Object} options
-   * @param {string} [options.appName] - Filter by app name
-   * @param {string} [options.adminKey] - Admin API key
-   * @returns {Promise<{keys: Array, apps: Array}>}
-   */
-  async listKeys({ appName, adminKey } = {}) {
-    const key = adminKey || this.apiKey;
-    const query = appName ? `?appName=${appName}` : '';
-    return this._request('GET', `/api/keys/list${query}`, null, key);
-  }
-
-  /**
-   * Revoke an API key
-   * @param {string} keyId - The key ID to revoke
-   * @param {string} [adminKey] - Admin API key
-   * @returns {Promise<{success: boolean, message: string}>}
-   */
-  async revokeKey(keyId, adminKey) {
-    const key = adminKey || this.apiKey;
-    return this._request('POST', '/api/keys/revoke', { keyId }, key);
-  }
-
-  /**
-   * Get stats for current API key
-   * @returns {Promise<{stats: Object}>}
-   */
-  async getKeyStats() {
-    return this._request('GET', '/api/keys/stats', null, this.apiKey);
-  }
-
   // ─── Cleanup ──────────────────────────────────────────────
 
   /**

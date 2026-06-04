@@ -107,7 +107,7 @@ function cmdHelp() {
   console.log(`  ${C.dim}astra list${C.reset}              List all protected apps`);
   console.log(`  ${C.dim}astra status${C.reset}            Check token status in current dir`);
   console.log();
-  console.log(`${C.dim}Dashboard: https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+  console.log(`${C.dim}Dashboard: https://astrasec.xyz/dashboard${C.reset}`);
   console.log();
 }
 
@@ -283,7 +283,7 @@ async function cmdAdd(targetPath) {
       console.log(`${C.dim}Token unchanged. Find it at:${C.reset}`);
       console.log(`  ${C.cyan}${tokenFile}${C.reset}`);
       console.log();
-      console.log(`${C.dim}Dashboard: https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+      console.log(`${C.dim}Dashboard: https://astrasec.xyz/dashboard${C.reset}`);
       return;
     }
     console.log();
@@ -360,7 +360,7 @@ async function cmdAdd(targetPath) {
   console.log(`${C.bold}Next steps:${C.reset}`);
   console.log(`  1. Import ${C.cyan}astra-init.js${C.reset} in your app entry point`);
   console.log(`  2. Run ${C.cyan}npm install${C.reset} to install astra-shield`);
-  console.log(`  3. Go to ${C.bold}https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+  console.log(`  3. Go to ${C.bold}https://astrasec.xyz/dashboard${C.reset}`);
   console.log(`  4. Click ${C.bold}+ Add app${C.reset} and paste the token above`);
   console.log();
   console.log(`  ${C.yellow}!${C.reset} ${C.dim}Keep this token private — do not commit it to git${C.reset}`);
@@ -421,7 +421,7 @@ async function cmdRemove(appName) {
   saveApps(appsData);
   console.log();
   console.log(`${C.green}${C.bold}✓ "${target.name}" removed${C.reset}`);
-  console.log(`${C.dim}  Disconnect it from your dashboard too: https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+  console.log(`${C.dim}  Disconnect it from your dashboard too: https://astrasec.xyz/dashboard${C.reset}`);
 }
 
 async function cmdConfigure() {
@@ -485,7 +485,7 @@ async function cmdStatus() {
     console.log(`${C.yellow}${C.bold}  ! Not configured — run \`astra add\`${C.reset}`);
   }
   console.log();
-  console.log(`  ${C.dim}Dashboard: https://astra-shield-site.vercel.app/dashboard${C.reset}`);
+  console.log(`  ${C.dim}Dashboard: https://astrasec.xyz/dashboard${C.reset}`);
 }
 
 async function cmdDoctor() {
