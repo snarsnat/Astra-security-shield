@@ -4,6 +4,8 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import crypto from 'node:crypto';
+import { clientIp, signChallengeToken } from './_crypto';
 
 // Global in-memory storage (persists across warm Vercel lambdas)
 declare global {
@@ -270,6 +272,14 @@ function determineTier(riskScore: number): number {
   return 4;
 }
 
+// Proof-of-work difficulty (leading hex zeros) by tier. Light enough to be
+// imperceptible to a human (tens of ms) but impossible to fake by assertion.
+function powDifficultyForTier(tier: number): number {
+  if (tier >= 4) return 4; // ~65k hashes
+  if (tier === 3) return 3; // ~4k hashes
+  return 2;                 // ~256 hashes
+}
+
 function generateChallenge(tier: number, sessionId: string, fpKey?: string, prevType?: string): any {
   const all = ['pulse', 'tilt', 'flick', 'breath', 'rhythm', 'pressure', 'path', 'semantic'];
   // After multiple failures, switch challenge type for variety (humans handle variety, bots struggle).
@@ -288,12 +298,25 @@ function generateChallenge(tier: number, sessionId: string, fpKey?: string, prev
     path: 'Trace the path.',
     semantic: 'Tap the correct shape.',
   };
+
+  // Server-issued proof-of-work — the cryptographic gate. The client must solve
+  // it (find `pow` s.t. sha256(`${nonce}.${pow}`) starts with `difficulty` hex
+  // zeros) and return it. challenge-verify checks this statelessly.
+  const nonce = crypto.randomBytes(16).toString('hex');
+  const difficulty = powDifficultyForTier(tier);
+  const expiresAt = Date.now() + 300_000;
+
   const challenge = {
-    id, type, difficulty: diff, sessionId, fpKey,
-    expiresAt: Date.now() + 300_000,
+    id, type, difficulty: diff, sessionId, fpKey: fpKey || '',
+    expiresAt,
     instructions: instructions[type] || 'Complete the challenge.',
     attempts: 0,
     tier,
+    // Proof-of-work spec
+    nonce,
+    powDifficulty: difficulty,
+    // Self-contained signed token → verifiable on any instance, no shared map needed
+    token: signChallengeToken({ id, type, tier, fpKey: fpKey || '', nonce, difficulty, expiresAt }),
   };
   challenges.set(id, challenge);
   return challenge;
@@ -321,8 +344,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method !== 'POST') return res.status(405).json({ success: false, reason: 'method_not_allowed' });
 
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = (typeof forwardedFor === 'string' ? forwardedFor.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
   if (!checkRateLimit(ip)) return res.status(429).json({ success: false, reason: 'rate_limit_exceeded', retryAfter: 60 });
 
   try {

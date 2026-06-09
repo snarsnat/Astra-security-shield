@@ -8,6 +8,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { hashFingerprint, getBlockRecord } from './verify';
+import { clientIp } from './_crypto';
 
 const HARD_BLOCK_THRESHOLD = 5;
 
@@ -30,8 +31,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
   if (req.method !== 'POST') return res.status(405).json({ success: false, reason: 'method_not_allowed' });
 
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const ip = (typeof forwardedFor === 'string' ? forwardedFor.split(',')[0].trim() : '') || req.socket.remoteAddress || 'unknown';
+  const ip = clientIp(req);
 
   try {
     const { clientData } = req.body || {};

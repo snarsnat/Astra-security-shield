@@ -16,6 +16,7 @@ export { ScriptMonitor }     from './core/ScriptMonitor.js';
 // Server-verified attestation (proof-of-work) + adaptive anomaly scoring
 export { ProofOfWork } from './core/ProofOfWork.js';
 export { MLClient }    from './core/MLClient.js';
+export { solveServerlessPow } from './core/serverlessPow.js';
 
 // Legacy browser SDK
 export { ASTRAShield } from './core/Shield.js';

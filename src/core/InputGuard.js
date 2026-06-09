@@ -138,7 +138,9 @@ const RULES = [
   {
     type: 'xss',
     label: 'XSS Event Handler',
-    pattern: /\bon\w+\s*=\s*["']?[^"'>]*["']?/i,
+    // Anchored to real DOM event-handler names AND a script-like value, so benign
+    // identifier assignments like `online = true` no longer false-positive.
+    pattern: /\bon(?:error|load|click|mouse\w+|key\w+|focus|blur|change|input|submit|drag\w*|drop|scroll|wheel|touch\w+|pointer\w+|contextmenu|animation\w+|transition\w+|toggle|abort|select|reset|resize|play|pause|ended|canplay|unload|beforeunload|hashchange|popstate|message)\s*=\s*["'`]?\s*(?:[\w$.]+\s*\(|javascript:|data:text\/html|eval\b|alert\b|prompt\b|confirm\b|this\b|document\b|window\b|location\b)/i,
   },
   {
     type: 'xss',
