@@ -57,6 +57,7 @@ const VerifyBodySchema = z.object({
   sessionId: IDSchema.optional(),
   token: TokenSchema,
   clientData: ClientDataSchema,
+  challengeId: z.string().min(1).max(512).optional(),
   challengeToken: z.string().max(512).optional(),
   challengeSolution: z.any().optional(),
   nonce: NonceSchema,
@@ -165,6 +166,7 @@ export function createAPIRoutes(services = {}, helpers = {}) {
         sessionId,
         token,
         clientData,
+        challengeId,
         challengeToken,
         challengeSolution,
         nonce,
@@ -210,10 +212,12 @@ export function createAPIRoutes(services = {}, helpers = {}) {
         details: {},
       };
 
-      // If there's a challenge solution, verify it first
-      if (challengeToken && challengeSolution) {
+      // If there's a challenge solution, verify it first.
+      // verifyChallenge looks the challenge up by ID — pass the id, not the token.
+      const cid = challengeId || challengeToken;
+      if (cid && challengeSolution) {
         const challengeResult = await challenge.verifyChallenge(
-          challengeToken,
+          cid,
           challengeSolution,
           { sessionId: sessionData.id }
         );

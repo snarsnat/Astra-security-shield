@@ -121,6 +121,12 @@ export function recordChallengeFailure(key: string, tier: number): { hardBlock: 
 export function recordChallengeSuccess(key: string) {
   const rec = blocks.get(key);
   if (!rec) return;
+  // Do not let a solve erode an ACTIVE hard block — you can't earn your way out
+  // mid-cooldown. Only credit success once the block window has elapsed.
+  if (rec.blockedUntil > Date.now()) {
+    rec.lastSeen = Date.now();
+    return;
+  }
   rec.failureCount = Math.max(0, rec.failureCount - 2);
   rec.riskScore = Math.max(0, rec.riskScore - 0.2);
   rec.lastSeen = Date.now();
@@ -206,9 +212,15 @@ function createSession(ip: string, userAgent: string): SessionData {
 function getOrCreateSession(ip: string, userAgent: string, sessionId?: string): SessionData {
   if (sessionId && sessions.has(sessionId)) {
     const existing = sessions.get(sessionId)!;
-    // Validate session ownership: IP must match to prevent session hijacking
+    // Session-ownership check: a sessionId presented from a different IP is
+    // suspicious (hijack attempt or token sharing). Don't hand out a clean
+    // trust-0.5 session — mint a fresh one flagged low-trust so it earns its way
+    // up rather than resetting risk for free.
     if (existing.ip !== ip) {
-      return createSession(ip, userAgent);
+      const fresh = createSession(ip, userAgent);
+      fresh.trustScore = 0.2;
+      fresh.riskScores.push(0.5);
+      return fresh;
     }
     existing.lastActivity = Date.now();
     return existing;
@@ -219,6 +231,11 @@ function getOrCreateSession(ip: string, userAgent: string, sessionId?: string): 
 function analyzeBehavior(clientData: any): number {
   let riskScore = 0;
   const behavior = clientData?.behavior || {};
+  // Absence of ALL behavioral evidence is itself a signal — a real session that
+  // reaches protect() has produced some interaction; bots usually send nothing.
+  if (!behavior.mouseData && !behavior.keyboardData && !behavior.touchData && !behavior.timingData) {
+    riskScore += 0.25;
+  }
   if (behavior.mouseData) {
     const m = behavior.mouseData;
     if (m.totalMovements === 0 && m.totalClicks === 0) riskScore += 0.3;
@@ -242,7 +259,11 @@ function analyzeFingerprint(clientData: any): { score: number; anomalies: string
   if (!fingerprints.canvas && !fingerprints.canvasHash && Object.keys(fingerprints).length > 0) {
     anomalies.push('missing_canvas_fingerprint'); score += 0.1;
   }
-  if (fingerprints.webgl && fingerprints.webglRenderer === 'Google SwiftShader') {
+  // Software renderer = strong headless/VM signal. Match the renderer string
+  // directly (no `&& webgl` gate — a bot omitting `webgl` must not skip this),
+  // and cover the common software renderers, not just SwiftShader.
+  const renderer = String(fingerprints.webglRenderer || fingerprints.webgl || '');
+  if (/SwiftShader|llvmpipe|Mesa|SwANGLE|Software(?:Rasterizer)?|Microsoft Basic Render/i.test(renderer)) {
     anomalies.push('software_webgl_rendering'); score += 0.15;
   }
   if (clientData?.languages && clientData.languages.length > 10) {

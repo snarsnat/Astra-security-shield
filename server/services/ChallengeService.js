@@ -12,8 +12,13 @@
 import crypto from 'crypto';
 import { nanoid } from 'nanoid';
 
-// Shared signing secret — generated once at process start, or from env
+// Shared signing secret — from env, or an ephemeral per-process fallback.
+// The fallback breaks verification across instances and after a restart, so
+// warn loudly: production MUST set CHALLENGE_SECRET.
 const VERIFICATION_SECRET = process.env.CHALLENGE_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.CHALLENGE_SECRET) {
+  console.warn('[ASTRA] WARNING: CHALLENGE_SECRET not set — using an ephemeral per-process secret. Verification tokens will not survive a restart or work across instances. Set CHALLENGE_SECRET in production.');
+}
 
 export class ChallengeService {
   constructor(options = {}) {
@@ -284,7 +289,11 @@ export class ChallengeService {
     // Generate random prefix
     const prefix = nanoid(16);
 
-    // Calculate required leading zeros
+    // NOTE: here `difficulty` is in BITS (default 20 → 5 hex zeros). This is
+    // self-contained: verifyPoWSolution reads `requiredZeros` from challenge.data,
+    // so generate/verify always agree. The serverless tier (api/astra/_crypto.ts)
+    // uses a DIFFERENT unit — leading hex zeros directly — so never cross-verify a
+    // challenge from one path with the other.
     const requiredZeros = Math.ceil(difficulty / 4);
 
     return {
@@ -340,15 +349,20 @@ export class ChallengeService {
     challenge.attempts++;
     await this.storeChallenge(challengeId, challenge);
 
-    // Timing guard — reject suspiciously fast solutions
-    const elapsed = Date.now() - challenge.created;
-    const minTime = this.config.minHumanTime[challenge.type] || 500;
-    if (elapsed < minTime) {
-      return {
-        success: false,
-        reason: 'solved_too_fast',
-        attemptsRemaining: this.config.maxAttempts - challenge.attempts,
-      };
+    // Timing guard — reject suspiciously fast solutions for HUMAN-interaction
+    // challenges. Proof-of-work is a CPU task: solving it fast is expected and
+    // not a bot signal, so the floor doesn't apply (the hash difficulty is the
+    // real gate there).
+    if (challenge.type !== 'proof_of_work') {
+      const elapsed = Date.now() - challenge.created;
+      const minTime = this.config.minHumanTime[challenge.type] || 500;
+      if (elapsed < minTime) {
+        return {
+          success: false,
+          reason: 'solved_too_fast',
+          attemptsRemaining: this.config.maxAttempts - challenge.attempts,
+        };
+      }
     }
 
     // Verify solution
@@ -711,6 +725,9 @@ export class ChallengeService {
     let filtered = available;
     if (options.accessibilityLevel === 'high') {
       filtered = available.filter(c => c.accessibility === 'high' || c.accessibility === 'very_high');
+      // Never let the filter empty the list — fall back to all available so the
+      // sort/[0] below can't deref undefined.
+      if (filtered.length === 0) filtered = available;
     }
 
     // Select based on risk level
@@ -725,8 +742,9 @@ export class ChallengeService {
       difficulty = 'extreme';
     }
 
-    // Select highest scoring available challenge
-    const selected = filtered.sort((a, b) => b.score - a.score)[0];
+    // Select highest scoring available challenge (default to a safe type if the
+    // available list is somehow empty).
+    const selected = filtered.sort((a, b) => b.score - a.score)[0] || { type: 'breath' };
 
     // Generate the challenge
     return this.generateChallenge(selected.type, {

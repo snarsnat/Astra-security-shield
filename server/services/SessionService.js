@@ -18,6 +18,14 @@ import { join } from 'path';
 const ASTRA_DIR = join(homedir(), '.astra');
 const ANALYTICS_FILE = join(ASTRA_DIR, 'shield-analytics.json');
 
+// Stable token-signing secret. Must come from env in production — the ephemeral
+// fallback is per-PROCESS (not per-call) so signatures stay consistent within an
+// instance, but won't match across instances or survive a restart.
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+  console.warn('[ASTRA] WARNING: SESSION_SECRET not set — using an ephemeral per-process secret. Set SESSION_SECRET in production for stable, multi-instance token signing.');
+}
+
 export class SessionService {
   constructor(options = {}) {
     this.redis = options.redis || null;
@@ -32,7 +40,9 @@ export class SessionService {
 
     // In-memory fallback
     this.sessions = new Map();
-    this.tokens = new Map();
+    this.tokens = new Map();              // tokenId  -> { token, expiresAt }
+    this.tokenAccess = new Map();         // accessToken  -> tokenId
+    this.tokenRefresh = new Map();        // refreshToken -> tokenId
 
     // Analytics — global and per-app
     this.analytics = {
@@ -401,21 +411,22 @@ export class SessionService {
    * Delete token
    */
   async deleteToken(tokenId) {
-    const token = await this.getStoredToken(tokenId);
-    if (token && this.tokens.has(token.sessionId)) {
-      const sessionTokens = this.tokens.get(token.sessionId);
-      const index = sessionTokens.indexOf(tokenId);
-      if (index > -1) {
-        sessionTokens.splice(index, 1);
-      }
-    }
-
     if (this.redis) {
+      const token = await this.getStoredToken(tokenId);
       await this.redis.del(`token:${tokenId}`);
-    } else {
+      if (token) {
+        await this.redis.del(`token_access:${token.accessToken}`);
+        await this.redis.del(`token_refresh:${token.refreshToken}`);
+      }
+      return true;
+    }
+    // Memory: drop the record and both reverse-lookups.
+    const rec = this.tokens.get(tokenId);
+    if (rec) {
+      this.tokenAccess.delete(rec.token.accessToken);
+      this.tokenRefresh.delete(rec.token.refreshToken);
       this.tokens.delete(tokenId);
     }
-
     return true;
   }
 
@@ -847,7 +858,43 @@ export class SessionService {
         await this.redis.setex(`token_access:${token.accessToken}`, ttl, tokenId);
         await this.redis.setex(`token_refresh:${token.refreshToken}`, ttl, tokenId);
       }
+      return;
     }
+    // In-memory path — the live path when no Redis is configured.
+    if (this.tokens.size > 50_000) this._pruneTokens();
+    // On rotation the tokenId is reused with new strings — evict the old
+    // reverse-lookups so a rotated-away access/refresh token stops validating.
+    const prev = this.tokens.get(tokenId);
+    if (prev) {
+      if (prev.token.accessToken !== token.accessToken) this.tokenAccess.delete(prev.token.accessToken);
+      if (prev.token.refreshToken !== token.refreshToken) this.tokenRefresh.delete(prev.token.refreshToken);
+    }
+    this.tokens.set(tokenId, { token, expiresAt: token.expires });
+    this.tokenAccess.set(token.accessToken, tokenId);
+    this.tokenRefresh.set(token.refreshToken, tokenId);
+  }
+
+  _pruneTokens() {
+    const now = Date.now();
+    for (const [id, rec] of this.tokens) {
+      if (rec.expiresAt <= now) {
+        this.tokens.delete(id);
+        this.tokenAccess.delete(rec.token.accessToken);
+        this.tokenRefresh.delete(rec.token.refreshToken);
+      }
+    }
+  }
+
+  _getMemoryToken(tokenId) {
+    const rec = this.tokens.get(tokenId);
+    if (!rec) return null;
+    if (rec.expiresAt <= Date.now()) {
+      this.tokens.delete(tokenId);
+      this.tokenAccess.delete(rec.token.accessToken);
+      this.tokenRefresh.delete(rec.token.refreshToken);
+      return null;
+    }
+    return rec.token;
   }
 
   /**
@@ -858,7 +905,7 @@ export class SessionService {
       const data = await this.redis.get(`token:${tokenId}`);
       return data ? JSON.parse(data) : null;
     }
-    return null;
+    return this._getMemoryToken(tokenId);
   }
 
   /**
@@ -868,7 +915,9 @@ export class SessionService {
     if (this.redis) {
       return await this.redis.get(`token_access:${accessToken}`);
     }
-    return null;
+    const tokenId = this.tokenAccess.get(accessToken);
+    // Validate it hasn't expired (also evicts stale reverse-lookup entries)
+    return tokenId && this._getMemoryToken(tokenId) ? tokenId : null;
   }
 
   /**
@@ -878,7 +927,8 @@ export class SessionService {
     if (this.redis) {
       return await this.redis.get(`token_refresh:${refreshToken}`);
     }
-    return null;
+    const tokenId = this.tokenRefresh.get(refreshToken);
+    return tokenId && this._getMemoryToken(tokenId) ? tokenId : null;
   }
 
   /**
@@ -895,7 +945,7 @@ export class SessionService {
     const prefix = type === 'access' ? 'at_' : 'rt_';
     const payload = nanoid(32);
     const signature = crypto
-      .createHmac('sha256', options.secret || process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'))
+      .createHmac('sha256', options.secret || SESSION_SECRET)
       .update(payload)
       .digest('base64url');
 

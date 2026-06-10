@@ -19,6 +19,7 @@ import {
   recordChallengeFailure,
   recordChallengeSuccess,
   getBlockRecord,
+  isHardBlocked,
 } from './verify';
 import { clientIp, verifyPow, verifyChallengeToken } from './_crypto';
 
@@ -119,6 +120,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const tier: number = typeof challenge.tier === 'number' ? challenge.tier : 2;
   const nonce: string = challenge.nonce;
   const difficulty: number = typeof challenge.powDifficulty === 'number' ? challenge.powDifficulty : 2;
+
+  // Hard-block gate — an active cooldown cannot be solved away. Both endpoints
+  // must agree on what "blocked" means, so reject here too (verify.ts already does).
+  const hb = isHardBlocked(fpKey);
+  if (hb.blocked) {
+    return res.status(403).json({
+      success: false, reason: 'cooldown_active', blocked: true,
+      hardBlock: true, cooldown: true, retryAfter: hb.retryAfter, fpKey,
+    });
+  }
 
   if (Date.now() > challenge.expiresAt) {
     challenges.delete(challengeId);

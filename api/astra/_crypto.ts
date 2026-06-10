@@ -93,13 +93,22 @@ export function verifyChallengeToken(token: unknown): ChallengeToken | null {
  * back to the (client-influenced) leftmost `x-forwarded-for` off-platform.
  */
 export function clientIp(req: VercelRequest): string {
+  // On Vercel, x-real-ip is set by the edge to the real connecting IP — trusted.
   const realIp = req.headers['x-real-ip'];
   if (typeof realIp === 'string' && realIp.trim()) return realIp.trim();
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.trim()) {
-    const first = xff.split(',')[0].trim();
-    if (first) return first;
+
+  // Off-platform, x-forwarded-for is fully client-controlled and must NOT be
+  // trusted unless a proxy that strips inbound XFF sits in front. Gate it behind
+  // an explicit opt-in so a self-hosted deployment can't be spoofed by default.
+  if (process.env.ASTRA_TRUST_PROXY === 'true') {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.trim()) {
+      const first = xff.split(',')[0].trim();
+      if (first) return first;
+    }
   }
+
+  // Unspoofable: the real TCP peer address.
   return req.socket?.remoteAddress || 'unknown';
 }
 
